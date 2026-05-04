@@ -3,7 +3,7 @@ import Home from './Home';
 import FieldOfficerForm from './FieldOfficerForm';
 import DemoSalesList from './DemoSalesList';
 import DeleteRecords from './DeleteRecords';
-import UnifiedHistory from './UnifiedHistory';
+import HistoryPage from './components/History/HistoryPage';
 import RoutePlanner from './RoutePlanner';
 import Login from "./login.jsx";
 import MoMForm from './MoMForm.jsx';
@@ -35,7 +35,7 @@ export default function App() {
         } />
         <Route path="/history" element={
           <RequireAuth>
-            <UnifiedHistory />
+            <HistoryPage />
           </RequireAuth>
         } />
 
