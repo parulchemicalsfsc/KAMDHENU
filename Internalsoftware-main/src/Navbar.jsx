@@ -14,7 +14,7 @@ export default function Navbar() {
   // Define navLinks array for navigation
   const navLinks = [
     { to: '/', label: 'Home' },
-    { to: '/form', label: 'Field Officer Daily Form' },
+    { to: '/form', label: 'Daily Form' },
     { to: '/demo-sales-list', label: 'Demo Sales List' },
     { to: '/history', label: 'History' },
     { to: '/member-page', label: 'Member' },

@@ -68,7 +68,7 @@ export default function HistoryPage() {
                   : 'bg-white text-[#64748B] hover:bg-[#F1F5F9] shadow-sm'
               }`}
             >
-              Field Officer History
+              Daily Form History
             </button>
             <button
               onClick={() => setActiveTab('demo')}

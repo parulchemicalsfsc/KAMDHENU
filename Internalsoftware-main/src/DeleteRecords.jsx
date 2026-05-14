@@ -87,7 +87,7 @@ export default function DeleteRecords() {
         {/* Filter controls */}
         <div style={{ display: 'flex', gap: 16, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
           <label style={{ fontWeight: 500 }}>
-            Field Officer:
+            Officer:
             <select value={officerFilter} onChange={e => setOfficerFilter(e.target.value)} style={{ marginLeft: 8, minWidth: 160 }}>
               <option value="">All</option>
               {officerNames.map(name => (

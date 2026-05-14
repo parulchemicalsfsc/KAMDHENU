@@ -76,7 +76,7 @@ export default function History() {
     const doc = new jsPDF();
     doc.setFont('helvetica');
     doc.setFontSize(16);
-    doc.text('Field Officer Daily Data', 14, 18);
+    doc.text('Daily Form Data', 14, 18);
     doc.setFontSize(11);
     doc.text(`Officer: ${record.officerName || '-'} | Date: ${record.date || '-'}`, 14, 28);
     doc.text(`Working Type: ${record.workingType || '-'} | KMs: ${record.kms || '-'}`, 14, 36);
@@ -116,7 +116,7 @@ export default function History() {
     doc.text('Expenses:', 14, y); y += 6;
     const exp = record.expenses || { food: 0, fuel: 0, total: 0 };
     doc.text(`Food Allowance: ₹${exp.food} | Fuel: ₹${exp.fuel} | Total: ₹${exp.total}`, 18, y);
-    doc.save(`FieldOfficer_${record.officerName || 'data'}_${record.date || ''}.pdf`);
+    doc.save(`DailyForm_${record.officerName || 'data'}_${record.date || ''}.pdf`);
   };
 
   // Add/Edit Comment
@@ -161,7 +161,7 @@ export default function History() {
   return (
     <>
       <div className="form-container">
-        <h2 style={{color:'#174ea6', fontWeight:800, marginBottom:16}}>Field Officer Report History</h2>
+        <h2 style={{color:'#174ea6', fontWeight:800, marginBottom:16}}>Daily Form History</h2>
         <div className="section-card" style={{marginBottom:16, display:'flex', flexWrap:'wrap', gap:12, alignItems:'center'}}>
           <label>Officer:</label>
           <select value={officerFilter} onChange={e=>setOfficerFilter(e.target.value)} style={{minWidth:120}}>
