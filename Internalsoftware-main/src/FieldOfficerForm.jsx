@@ -70,6 +70,22 @@ export default function FieldOfficerForm() {
   const [submitting, setSubmitting] = useState(false);
   const [showRemarksModal, setShowRemarksModal] = useState(false);
   const [remarkSelections, setRemarkSelections] = useState({});
+  const [sectionsExpanded, setSectionsExpanded] = useState({
+    officerDetails: false,
+    workInfo: false,
+    visitedLocations: false,
+    customersOrders: false,
+    notesRemarks: false,
+    reviewerSection: false,
+    dailySummary: false
+  });
+
+  const toggleSection = (sectionKey) => {
+    setSectionsExpanded(prev => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey]
+    }));
+  };
 
   // --- Effects ---
   useEffect(() => {
@@ -299,379 +315,456 @@ export default function FieldOfficerForm() {
       <div className="daily-form-container">
         {/* Officer Details */}
         <section className="form-section section-dotted">
-          <div className="section-header">
+          <div 
+            className="section-header" 
+            onClick={() => toggleSection('officerDetails')} 
+            style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', width: '100%', marginBottom: sectionsExpanded.officerDetails ? '20px' : '0' }}
+          >
             <span className="section-icon"><Icons.Person /></span>
             <span className="section-title">Officer Details</span>
+            <span className="section-icon" style={{ marginLeft: 'auto' }}>
+              {sectionsExpanded.officerDetails ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+            </span>
           </div>
           
-          <div className="field-group">
-            <label className="field-label">OFFICER NAME:</label>
-            <select 
-              className="select-field"
-              value={form.officerName}
-              onChange={(e) => setForm({ ...form, officerName: e.target.value })}
-            >
-              <option value="">Select Officer</option>
-              {officers.map((o, i) => (
-                <option key={i} value={`${o.name} (${o.code})`}>
-                  {o.name} ({o.code})
-                </option>
-              ))}
-            </select>
-          </div>
+          {sectionsExpanded.officerDetails && (
+            <>
+              <div className="field-group">
+                <label className="field-label">OFFICER NAME:</label>
+                <select 
+                  className="select-field"
+                  value={form.officerName}
+                  onChange={(e) => setForm({ ...form, officerName: e.target.value })}
+                >
+                  <option value="">Select Officer</option>
+                  {officers.map((o, i) => (
+                    <option key={i} value={`${o.name} (${o.code})`}>
+                      {o.name} ({o.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="field-group">
-            <label className="field-label">OFFICER NAME:</label>
-            <input 
-              type="text" 
-              className="input-field" 
-              placeholder="Full Name"
-              value={newOfficer.name} 
-              onChange={(e) => setNewOfficer({ ...newOfficer, name: e.target.value })}
-            />
-          </div>
+              <div className="field-group">
+                <label className="field-label">OFFICER NAME:</label>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  placeholder="Full Name"
+                  value={newOfficer.name} 
+                  onChange={(e) => setNewOfficer({ ...newOfficer, name: e.target.value })}
+                />
+              </div>
 
-          <div className="field-group">
-            <label className="field-label">OFFICER CODE:</label>
-            <input 
-              type="text" 
-              className="input-field" 
-              placeholder="Code (e.g. GJ03)"
-              value={newOfficer.code} 
-              onChange={(e) => setNewOfficer({ ...newOfficer, code: e.target.value })}
-            />
-          </div>
+              <div className="field-group">
+                <label className="field-label">OFFICER CODE:</label>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  placeholder="Code (e.g. GJ03)"
+                  value={newOfficer.code} 
+                  onChange={(e) => setNewOfficer({ ...newOfficer, code: e.target.value })}
+                />
+              </div>
 
-          <div className="field-group">
-            <label className="field-label">OFFICER TYPE:</label>
-            <select 
-              className="select-field"
-              value={newOfficer.type} 
-              onChange={(e) => setNewOfficer({ ...newOfficer, type: e.target.value })}
-            >
-              <option value="Full Time">Full Time</option>
-              <option value="Part Time">Part Time</option>
-            </select>
-          </div>
+              <div className="field-group">
+                <label className="field-label">OFFICER TYPE:</label>
+                <select 
+                  className="select-field"
+                  value={newOfficer.type} 
+                  onChange={(e) => setNewOfficer({ ...newOfficer, type: e.target.value })}
+                >
+                  <option value="Full Time">Full Time</option>
+                  <option value="Part Time">Part Time</option>
+                </select>
+              </div>
 
-          <div className="btn-row">
-            <button className="btn-text" onClick={() => setShowAddOfficer(false)}>Cancel</button>
-            <button className="btn-blue" onClick={handleAddOfficer}>
-              <Icons.CheckCircle /> Add Officer
-            </button>
-          </div>
+              <div className="btn-row">
+                <button className="btn-text" onClick={() => setShowAddOfficer(false)}>Cancel</button>
+                <button className="btn-blue" onClick={handleAddOfficer}>
+                  <Icons.CheckCircle /> Add Officer
+                </button>
+              </div>
+            </>
+          )}
         </section>
 
         {/* Work Information */}
         <section className="form-section section-dotted">
-          <div className="section-header">
+          <div 
+            className="section-header" 
+            onClick={() => toggleSection('workInfo')} 
+            style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', width: '100%', marginBottom: sectionsExpanded.workInfo ? '20px' : '0' }}
+          >
             <span className="section-icon"><Icons.Calendar /></span>
             <span className="section-title">Work Information</span>
+            <span className="section-icon" style={{ marginLeft: 'auto' }}>
+              {sectionsExpanded.workInfo ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+            </span>
           </div>
 
-          <div className="field-group">
-            <label className="field-label">DATE</label>
-            <input 
-              type="date" 
-              className="input-field" 
-              value={form.date} 
-              onChange={(e) => setForm({ ...form, date: e.target.value })} 
-            />
-          </div>
+          {sectionsExpanded.workInfo && (
+            <>
+              <div className="field-group">
+                <label className="field-label">DATE</label>
+                <input 
+                  type="date" 
+                  className="input-field" 
+                  value={form.date} 
+                  onChange={(e) => setForm({ ...form, date: e.target.value })} 
+                />
+              </div>
 
-          <div className="field-group">
-            <label className="field-label">WORKING TYPE</label>
-            <select 
-              className="select-field"
-              value={form.workingType} 
-              onChange={(e) => setForm({ ...form, workingType: e.target.value })}
-            >
-              <option value="Field Visit">Field Visit</option>
-              <option value="Office Work">Office Work</option>
-              <option value="Leave">Leave</option>
-              <option value="Mixed">Mixed</option>
-            </select>
-          </div>
+              <div className="field-group">
+                <label className="field-label">WORKING TYPE</label>
+                <select 
+                  className="select-field"
+                  value={form.workingType} 
+                  onChange={(e) => setForm({ ...form, workingType: e.target.value })}
+                >
+                  <option value="Field Visit">Field Visit</option>
+                  <option value="Office Work">Office Work</option>
+                  <option value="Leave">Leave</option>
+                  <option value="Mixed">Mixed</option>
+                </select>
+              </div>
 
-          <div className="field-row">
-            <div className="field-group">
-              <label className="field-label">PUNCH IN</label>
-              <input 
-                type="time" 
-                className="input-field" 
-                value={form.punchIn} 
-                onChange={(e) => setForm({ ...form, punchIn: e.target.value })} 
-              />
-            </div>
-            <div className="field-group">
-              <label className="field-label">PUNCH OUT</label>
-              <input 
-                type="time" 
-                className="input-field" 
-                value={form.punchOut} 
-                onChange={(e) => setForm({ ...form, punchOut: e.target.value })} 
-              />
-            </div>
-          </div>
+              <div className="field-row">
+                <div className="field-group">
+                  <label className="field-label">PUNCH IN</label>
+                  <input 
+                    type="time" 
+                    className="input-field" 
+                    value={form.punchIn} 
+                    onChange={(e) => setForm({ ...form, punchIn: e.target.value })} 
+                  />
+                </div>
+                <div className="field-group">
+                  <label className="field-label">PUNCH OUT</label>
+                  <input 
+                    type="time" 
+                    className="input-field" 
+                    value={form.punchOut} 
+                    onChange={(e) => setForm({ ...form, punchOut: e.target.value })} 
+                  />
+                </div>
+              </div>
 
-          <div className="field-row">
-            <div className="field-group">
-              <label className="field-label">BREAK START</label>
-              <input 
-                type="time" 
-                className="input-field" 
-                value={form.breakStart} 
-                onChange={(e) => setForm({ ...form, breakStart: e.target.value })} 
-              />
-            </div>
-            <div className="field-group">
-              <label className="field-label">BREAK END</label>
-              <input 
-                type="time" 
-                className="input-field" 
-                value={form.breakEnd} 
-                onChange={(e) => setForm({ ...form, breakEnd: e.target.value })} 
-              />
-            </div>
-          </div>
+              <div className="field-row">
+                <div className="field-group">
+                  <label className="field-label">BREAK START</label>
+                  <input 
+                    type="time" 
+                    className="input-field" 
+                    value={form.breakStart} 
+                    onChange={(e) => setForm({ ...form, breakStart: e.target.value })} 
+                  />
+                </div>
+                <div className="field-group">
+                  <label className="field-label">BREAK END</label>
+                  <input 
+                    type="time" 
+                    className="input-field" 
+                    value={form.breakEnd} 
+                    onChange={(e) => setForm({ ...form, breakEnd: e.target.value })} 
+                  />
+                </div>
+              </div>
 
-          <div className="field-group">
-            <label className="field-label">KMS TRAVELLED</label>
-            <input 
-              type="number" 
-              step="0.1"
-              className="input-field" 
-              value={form.kms} 
-              onChange={(e) => setForm({ ...form, kms: e.target.value })} 
-            />
-          </div>
+              <div className="field-group">
+                <label className="field-label">KMS TRAVELLED</label>
+                <input 
+                  type="number" 
+                  step="0.1"
+                  className="input-field" 
+                  value={form.kms} 
+                  onChange={(e) => setForm({ ...form, kms: e.target.value })} 
+                />
+              </div>
+            </>
+          )}
         </section>
 
         {/* Visited Locations */}
         <section className="form-section">
-          <div className="section-header">
+          <div 
+            className="section-header" 
+            onClick={() => toggleSection('visitedLocations')} 
+            style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', width: '100%', marginBottom: sectionsExpanded.visitedLocations ? '20px' : '0' }}
+          >
             <span className="section-icon"><Icons.MapPin /></span>
             <span className="section-title">Visited Locations</span>
+            <span className="section-icon" style={{ marginLeft: 'auto' }}>
+              {sectionsExpanded.visitedLocations ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+            </span>
           </div>
 
-          {locations.map((loc, i) => (
-            <div key={i} className="location-input-group">
-              <input 
-                type="text" 
-                className="input-field" 
-                placeholder={`Enter Location ${i + 1}`}
-                value={loc}
-                onChange={(e) => handleLocationChange(i, e.target.value)}
-              />
-              <span className="location-icon"><Icons.Map /></span>
-            </div>
-          ))}
+          {sectionsExpanded.visitedLocations && (
+            <>
+              {locations.map((loc, i) => (
+                <div key={i} className="location-input-group">
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder={`Enter Location ${i + 1}`}
+                    value={loc}
+                    onChange={(e) => handleLocationChange(i, e.target.value)}
+                  />
+                  <span className="location-icon"><Icons.Map /></span>
+                </div>
+              ))}
 
-          <button className="btn-add-location" onClick={addLocationField}>
-            <Icons.MapPin /> Add Location
-          </button>
+              <button className="btn-add-location" onClick={addLocationField}>
+                <Icons.MapPin /> Add Location
+              </button>
+            </>
+          )}
         </section>
 
         {/* Customers & Orders */}
         <section className="form-section">
-          <div className="section-header">
+          <div 
+            className="section-header" 
+            onClick={() => toggleSection('customersOrders')} 
+            style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', width: '100%', marginBottom: sectionsExpanded.customersOrders ? '20px' : '0' }}
+          >
             <span className="section-icon"><Icons.Users /></span>
             <span className="section-title">Customers & Orders</span>
+            <span className="section-icon" style={{ marginLeft: 'auto' }}>
+              {sectionsExpanded.customersOrders ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+            </span>
           </div>
 
-          {customers.map((c, i) => (
-            <div key={i} className="customer-card">
-              <div className="customer-card-header" onClick={() => toggleCustomerExpansion(i)}>
-                <div>
-                  <h4>{c.name || "Customer Name"}</h4>
-                  <p>{c.type || "RETAILER"}</p>
-                </div>
-                <span className="section-icon">
-                  {c.isExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
-                </span>
-              </div>
-              
-              {c.isExpanded && (
-                <div className="customer-card-content">
-                  <div className="field-group">
-                    <label className="field-label">CUSTOMER NAME</label>
-                    <input 
-                      type="text" 
-                      className="input-field" 
-                      value={c.name}
-                      onChange={(e) => updateCustomerField(i, 'name', e.target.value)}
-                    />
+          {sectionsExpanded.customersOrders && (
+            <>
+              {customers.map((c, i) => (
+                <div key={i} className="customer-card">
+                  <div className="customer-card-header" onClick={() => toggleCustomerExpansion(i)}>
+                    <div>
+                      <h4>{c.name || "Customer Name"}</h4>
+                      <p>{c.type || "RETAILER"}</p>
+                    </div>
+                    <span className="section-icon">
+                      {c.isExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+                    </span>
                   </div>
-
-                  <div className="field-row">
-                    <div className="field-group">
-                      <label className="field-label">PHONE</label>
-                      <input 
-                        type="tel" 
-                        className="input-field" 
-                        placeholder="10 Digits mobile"
-                        value={c.phone}
-                        onChange={(e) => updateCustomerField(i, 'phone', e.target.value)}
-                      />
-                    </div>
-                    <div className="field-group">
-                      <label className="field-label">TYPE</label>
-                      <select 
-                        className="select-field"
-                        value={c.type}
-                        onChange={(e) => updateCustomerField(i, 'type', e.target.value)}
-                      >
-                        <option value="Retail">Retail</option>
-                        <option value="Distributor">Distributor</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="order-details-section">
-                    <div className="order-details-header">
-                      <Icons.Calculator />
-                      <span>ORDER DETAILS</span>
-                    </div>
-
-                    {c.orders.map((o, j) => (
-                      <div key={j} className="order-row">
-                        <select 
-                          className="select-field"
-                          value={o.packaging}
-                          onChange={(e) => updateOrderField(i, j, 'packaging', e.target.value)}
-                        >
-                          <option value="">Select Order</option>
-                          <option value="1L JAR">1L JAR</option>
-                          <option value="2L JAR">2L JAR</option>
-                          <option value="5L PLASTIC JAR">5L PLASTIC JAR</option>
-                          <option value="5L STEEL BARNI">5L STEEL BARNI</option>
-                          <option value="10 LTR JAR">10 LTR JAR</option>
-                          <option value="10 LTR STEEL BARNI">10 LTR STEEL BARNI</option>
-                          <option value="20 LTR CARBO">20 LTR CARBO</option>
-                          <option value="20 LTR CAN">20 LTR CAN</option>
-                          <option value="20 LTR STEEL BARNI">20 LTR STEEL BARNI</option>
-                        </select>
+                  
+                  {c.isExpanded && (
+                    <div className="customer-card-content">
+                      <div className="field-group">
+                        <label className="field-label">CUSTOMER NAME</label>
                         <input 
-                          type="number" 
+                          type="text" 
                           className="input-field" 
-                          value={o.quantity}
-                          onChange={(e) => updateOrderField(i, j, 'quantity', e.target.value)}
+                          value={c.name}
+                          onChange={(e) => updateCustomerField(i, 'name', e.target.value)}
                         />
                       </div>
-                    ))}
 
-                    <button className="btn-add-order" onClick={() => addOrder(i)}>
-                      <Icons.Plus /> Add Order
-                    </button>
-                  </div>
+                      <div className="field-row">
+                        <div className="field-group">
+                          <label className="field-label">PHONE</label>
+                          <input 
+                            type="tel" 
+                            className="input-field" 
+                            placeholder="10 Digits mobile"
+                            value={c.phone}
+                            onChange={(e) => updateCustomerField(i, 'phone', e.target.value)}
+                          />
+                        </div>
+                        <div className="field-group">
+                          <label className="field-label">TYPE</label>
+                          <select 
+                            className="select-field"
+                            value={c.type}
+                            onChange={(e) => updateCustomerField(i, 'type', e.target.value)}
+                          >
+                            <option value="Retail">Retail</option>
+                            <option value="Distributor">Distributor</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="order-details-section">
+                        <div className="order-details-header">
+                          <Icons.Calculator />
+                          <span>ORDER DETAILS</span>
+                        </div>
+
+                        {c.orders.map((o, j) => (
+                          <div key={j} className="order-row">
+                            <select 
+                              className="select-field"
+                              value={o.packaging}
+                              onChange={(e) => updateOrderField(i, j, 'packaging', e.target.value)}
+                            >
+                              <option value="">Select Order</option>
+                              <option value="1L JAR">1L JAR</option>
+                              <option value="2L JAR">2L JAR</option>
+                              <option value="5L PLASTIC JAR">5L PLASTIC JAR</option>
+                              <option value="5L STEEL BARNI">5L STEEL BARNI</option>
+                              <option value="10 LTR JAR">10 LTR JAR</option>
+                              <option value="10 LTR STEEL BARNI">10 LTR STEEL BARNI</option>
+                              <option value="20 LTR CARBO">20 LTR CARBO</option>
+                              <option value="20 LTR CAN">20 LTR CAN</option>
+                              <option value="20 LTR STEEL BARNI">20 LTR STEEL BARNI</option>
+                            </select>
+                            <input 
+                              type="number" 
+                              className="input-field" 
+                              value={o.quantity}
+                              onChange={(e) => updateOrderField(i, j, 'quantity', e.target.value)}
+                            />
+                          </div>
+                        ))}
+
+                        <button className="btn-add-order" onClick={() => addOrder(i)}>
+                          <Icons.Plus /> Add Order
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+              ))}
 
-          <button className="btn-blue btn-full" onClick={addCustomer} style={{ marginBottom: 20 }}>
-            <Icons.Person /> Add New Customer
-          </button>
+              <button className="btn-blue btn-full" onClick={addCustomer} style={{ marginBottom: 20 }}>
+                <Icons.Person /> Add New Customer
+              </button>
+            </>
+          )}
         </section>
 
         {/* Notes & Remarks */}
         <section className="form-section">
-          <div className="section-header">
+          <div 
+            className="section-header" 
+            onClick={() => toggleSection('notesRemarks')} 
+            style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', width: '100%', marginBottom: sectionsExpanded.notesRemarks ? '20px' : '0' }}
+          >
             <span className="section-icon"><Icons.Clipboard /></span>
             <span className="section-title">Notes & Remarks</span>
+            <span className="section-icon" style={{ marginLeft: 'auto' }}>
+              {sectionsExpanded.notesRemarks ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+            </span>
           </div>
 
-          <div className="field-group">
-            <label className="field-label">ENTRY BY</label>
-            <input 
-              type="text" 
-              className="input-field" 
-              placeholder="Your Name"
-              value={form.entryBy} 
-              onChange={(e) => setForm({ ...form, entryBy: e.target.value })} 
-            />
-          </div>
+          {sectionsExpanded.notesRemarks && (
+            <>
+              <div className="field-group">
+                <label className="field-label">ENTRY BY</label>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  placeholder="Your Name"
+                  value={form.entryBy} 
+                  onChange={(e) => setForm({ ...form, entryBy: e.target.value })} 
+                />
+              </div>
 
-          <div className="field-group">
-            <label className="field-label">GENERAL NOTES</label>
-            <textarea 
-              className="textarea-field" 
-              placeholder="Enter field observations..."
-              rows="4"
-              value={form.notes} 
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
-          </div>
+              <div className="field-group">
+                <label className="field-label">GENERAL NOTES</label>
+                <textarea 
+                  className="textarea-field" 
+                  placeholder="Enter field observations..."
+                  rows="4"
+                  value={form.notes} 
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                />
+              </div>
 
-          <div className="field-group" onClick={() => setShowRemarksModal(true)} style={{ cursor: 'pointer' }}>
-            <label className="field-label">SPECIFIC REMARKS</label>
-            <div className="textarea-field" style={{ minHeight: '80px', background: '#f1f5f9', color: form.remarks ? '#1e293b' : '#94a3b8' }}>
-              {form.remarks || "Tap to set visit remarks..."}
-            </div>
-          </div>
+              <div className="field-group" onClick={() => setShowRemarksModal(true)} style={{ cursor: 'pointer' }}>
+                <label className="field-label">SPECIFIC REMARKS</label>
+                <div className="textarea-field" style={{ minHeight: '80px', background: '#f1f5f9', color: form.remarks ? '#1e293b' : '#94a3b8' }}>
+                  {form.remarks || "Tap to set visit remarks..."}
+                </div>
+              </div>
+            </>
+          )}
         </section>
 
         {/* Reviewer Section */}
         <section className="form-section section-dotted">
-          <div className="section-header">
+          <div 
+            className="section-header" 
+            onClick={() => toggleSection('reviewerSection')} 
+            style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', width: '100%', marginBottom: sectionsExpanded.reviewerSection ? '20px' : '0' }}
+          >
             <span className="section-icon"><Icons.MessageSquare /></span>
             <span className="section-title">Reviewer Section</span>
+            <span className="section-icon" style={{ marginLeft: 'auto' }}>
+              {sectionsExpanded.reviewerSection ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+            </span>
           </div>
 
-          <div className="field-group">
-            <label className="field-label">SELECT REVIEWER</label>
-            <select 
-              className="select-field"
-              value={form.reviewer} 
-              onChange={(e) => setForm({ ...form, reviewer: e.target.value })}
-            >
-              <option value="">Assigned Manager</option>
-              <option value="Maulik Shah">Maulik Shah</option>
-              <option value="Jigar Shah">Jigar Shah</option>
-              <option value="Sonal Madam">Sonal Madam</option>
-              <option value="Bhavin Prajapati">Bhavin Prajapati</option>
-              <option value="Jash Ilasariya">Jash Ilasariya</option>
-              <option value="Shubham">Shubham</option>
-            </select>
-          </div>
+          {sectionsExpanded.reviewerSection && (
+            <>
+              <div className="field-group">
+                <label className="field-label">SELECT REVIEWER</label>
+                <select 
+                  className="select-field"
+                  value={form.reviewer} 
+                  onChange={(e) => setForm({ ...form, reviewer: e.target.value })}
+                >
+                  <option value="">Assigned Manager</option>
+                  <option value="Maulik Shah">Maulik Shah</option>
+                  <option value="Jigar Shah">Jigar Shah</option>
+                  <option value="Sonal Madam">Sonal Madam</option>
+                  <option value="Bhavin Prajapati">Bhavin Prajapati</option>
+                  <option value="Jash Ilasariya">Jash Ilasariya</option>
+                  <option value="Shubham">Shubham</option>
+                </select>
+              </div>
 
-          <div className="field-group">
-            <textarea 
-              className="textarea-field" 
-              placeholder="Manager comments will appear here..."
-              rows="3"
-              value={form.reviewerComment} 
-              onChange={(e) => setForm({ ...form, reviewerComment: e.target.value })}
-            />
-          </div>
+              <div className="field-group">
+                <textarea 
+                  className="textarea-field" 
+                  placeholder="Manager comments will appear here..."
+                  rows="3"
+                  value={form.reviewerComment} 
+                  onChange={(e) => setForm({ ...form, reviewerComment: e.target.value })}
+                />
+              </div>
+            </>
+          )}
         </section>
 
         {/* Daily Summary */}
         <section className="form-section summary-section">
-          <div className="section-header">
+          <div 
+            className="section-header" 
+            onClick={() => toggleSection('dailySummary')} 
+            style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', width: '100%', marginBottom: sectionsExpanded.dailySummary ? '20px' : '0' }}
+          >
             <span className="section-icon"><Icons.Calculator /></span>
             <span className="section-title">Daily Summary</span>
+            <span className="section-icon" style={{ marginLeft: 'auto' }}>
+              {sectionsExpanded.dailySummary ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+            </span>
           </div>
 
-          <div className="summary-row">
-            <span>Total Orders</span>
-            <span>{getTotalOrders()} Units</span>
-          </div>
-          <div className="summary-row">
-            <span>Food Allowance</span>
-            <span>₹{getFoodAllowance().toFixed(2)}</span>
-          </div>
-          <div className="summary-row">
-            <span>Fuel Reimbursement</span>
-            <span>₹{getFuelReimbursement().toFixed(2)}</span>
-          </div>
+          {sectionsExpanded.dailySummary && (
+            <>
+              <div className="summary-row">
+                <span>Total Orders</span>
+                <span>{getTotalOrders()} Units</span>
+              </div>
+              <div className="summary-row">
+                <span>Food Allowance</span>
+                <span>₹{getFoodAllowance().toFixed(2)}</span>
+              </div>
+              <div className="summary-row">
+                <span>Fuel Reimbursement</span>
+                <span>₹{getFuelReimbursement().toFixed(2)}</span>
+              </div>
 
-          <div className="summary-divider"></div>
+              <div className="summary-divider"></div>
 
-          <div className="total-amount-row">
-            <span className="total-label">Total Amount</span>
-            <span className="total-value">₹{getTotalAmount().toFixed(2)}</span>
-          </div>
+              <div className="total-amount-row">
+                <span className="total-label">Total Amount</span>
+                <span className="total-value">₹{getTotalAmount().toFixed(2)}</span>
+              </div>
+            </>
+          )}
         </section>
 
         {/* Action Buttons */}

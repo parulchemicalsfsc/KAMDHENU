@@ -204,12 +204,12 @@ export default function History() {
                         </span>
                       ) : <span style={{color:'#aaa'}}>No comment</span>}
                     </td>
-                    <td style={{display:'flex',gap:8,alignItems:'center'}}>
-                      <button title="Download PDF" className="btn-glow" type="button" onClick={e => {e.stopPropagation(); exportRecordToPDF(r);}}>🧾</button>
-                      <button title="View" className="btn-outline" type="button" onClick={e => {e.stopPropagation(); setExpandedId(expandedId === r.id ? null : r.id);}}>👁</button>
-                      <button title="Edit" className="btn-outline" type="button" disabled>✏️</button>
-                      <button title="Delete" className="btn-outline" type="button" onClick={e => {e.stopPropagation(); deleteReport(r.id);}}>🗑️</button>
-                      <button title={r.commentedBy ? "Edit Comment" : "Add Comment"} className="btn-outline" type="button" onClick={e => {e.stopPropagation(); openCommentModal(r.id, r.commentedBy, r.commentText);}}>�</button>
+                    <td style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                      <button title="Download PDF" className="btn-glow w-auto" type="button" onClick={e => {e.stopPropagation(); exportRecordToPDF(r);}}>🧾</button>
+                      <button title="View" className="btn-outline w-auto" type="button" onClick={e => {e.stopPropagation(); setExpandedId(expandedId === r.id ? null : r.id);}}>👁</button>
+                      <button title="Edit" className="btn-outline w-auto" type="button" disabled>✏️</button>
+                      <button title="Delete" className="btn-outline w-auto" type="button" onClick={e => {e.stopPropagation(); deleteReport(r.id);}}>🗑️</button>
+                      <button title={r.commentedBy ? "Edit Comment" : "Add Comment"} className="btn-outline w-auto" type="button" onClick={e => {e.stopPropagation(); openCommentModal(r.id, r.commentedBy, r.commentText);}}>💬</button>
                     </td>
                   </tr>
                   {expandedId === r.id && (

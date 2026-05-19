@@ -379,6 +379,9 @@ button:hover, .btn-primary:hover, .btn-outline:hover, .btn-glow:hover {
     padding: 10px 0;
     margin-bottom: 6px;
   }
+  button.w-auto, .w-auto {
+    width: auto !important;
+  }
   input, select, textarea {
     font-size: 1em;
     padding: 8px 6px;

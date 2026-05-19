@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../../Navbar';
 import { db } from '../../firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import './History.css';
+import '../../DailyForm.css';
 
 export default function HistoryPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('field');
   const [fieldOfficerData, setFieldOfficerData] = useState([]);
   const [demoSalesData, setDemoSalesData] = useState([]);
@@ -46,23 +49,22 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans pb-20">
-      <Navbar />
+      <div className="daily-form-header">
+        <button className="back-button" onClick={() => navigate(-1)}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <span className="header-title">History</span>
+        <button className="header-more">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
       
       <main className="max-w-4xl mx-auto px-4 py-10">
         <header className="mb-10">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 bg-[#3B82F6] rounded-2xl flex items-center justify-center text-white shadow-[0_8px_20px_-4px_rgba(59,130,246,0.4)] transition-transform hover:scale-105 cursor-default">
-              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 20l-5.447-2.724A2 2 0 013 15.488V5.512a2 2 0 011.553-1.944L9 2l6 3 5.447-2.724A2 2 0 0121 4.224v9.976a2 2 0 01-1.553 1.944L15 22l-6-2zM9 20V5m6 17V7" />
-              </svg>
-            </div>
-            <h1 className="text-[36px] font-black text-[#1E293B] tracking-tight">History</h1>
-          </div>
-          
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <button
               onClick={() => setActiveTab('field')}
-              className={`px-8 py-3.5 rounded-2xl font-bold text-[15px] transition-all duration-300 transform active:scale-95 ${
+              className={`w-full sm:w-auto px-8 py-3.5 rounded-2xl font-bold text-[15px] transition-all duration-300 transform active:scale-95 ${
                 activeTab === 'field'
                   ? 'bg-[#3B82F6] text-white shadow-[0_10px_25px_-5px_rgba(59,130,246,0.4)] ring-4 ring-blue-500/10'
                   : 'bg-white text-[#64748B] hover:bg-[#F1F5F9] shadow-sm'
@@ -72,7 +74,7 @@ export default function HistoryPage() {
             </button>
             <button
               onClick={() => setActiveTab('demo')}
-              className={`px-8 py-3.5 rounded-2xl font-bold text-[15px] transition-all duration-300 transform active:scale-95 ${
+              className={`w-full sm:w-auto px-8 py-3.5 rounded-2xl font-bold text-[15px] transition-all duration-300 transform active:scale-95 ${
                 activeTab === 'demo'
                   ? 'bg-[#3B82F6] text-white shadow-[0_10px_25px_-5px_rgba(59,130,246,0.4)] ring-4 ring-blue-500/10'
                   : 'bg-white text-[#64748B] hover:bg-[#F1F5F9] shadow-sm'
@@ -141,7 +143,7 @@ function FieldOfficerSection({ data, allData, officerFilter, setOfficerFilter, d
       `}</style>
       
       {/* Filters Card */}
-      <div className="bg-white rounded-[24px] p-8 shadow-[0_2px_12px_-3px_rgba(0,0,0,0.04)] border border-slate-100/80">
+      <div className="bg-white rounded-[20px] sm:rounded-[24px] p-5 sm:p-8 shadow-[0_2px_12px_-3px_rgba(0,0,0,0.04)] border border-slate-100/80">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label className="block text-[11px] font-bold text-[#3B82F6] uppercase tracking-[0.1em] mb-2.5 ml-1">Officer</label>
@@ -219,7 +221,7 @@ function DemoSalesSection({ data }) {
   return (
     <div className="space-y-8 opacity-0 translate-y-4 animate-fadeInUp">
       {/* Analytics Card */}
-      <div className="bg-white rounded-[32px] p-8 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-slate-100/80">
+      <div className="bg-white rounded-[24px] sm:rounded-[32px] p-5 sm:p-8 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-slate-100/80">
         <h3 className="text-[20px] font-black text-[#1E293B] mb-6 tracking-tight">Analytics</h3>
         <ul className="space-y-4 text-[15px] text-slate-600 font-bold">
           <li className="flex items-center gap-2">
@@ -284,8 +286,8 @@ function ReportCard({ report }) {
   };
 
   return (
-    <div className="bg-white rounded-[32px] p-7 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100/80 hover:shadow-[0_12px_30px_-10px_rgba(0,0,0,0.08)] transition-all duration-300 group cursor-default">
-      <div className="flex justify-between items-start mb-6">
+    <div className="bg-white rounded-[24px] sm:rounded-[32px] p-5 sm:p-7 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100/80 hover:shadow-[0_12px_30px_-10px_rgba(0,0,0,0.08)] transition-all duration-300 group cursor-default">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h4 className="font-extrabold text-[#2563EB] text-[17px] mb-1 tracking-tight group-hover:text-blue-700 transition-colors">{report.reportId}</h4>
           <p className="text-[13px] text-slate-400 font-bold">{report.date} • {report.time || report.createdAt?.toDate?.().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) || 'N/A'}</p>
@@ -307,19 +309,19 @@ function ReportCard({ report }) {
 
       <div className="flex justify-between items-center">
         <div className="flex gap-5">
-          <button className="text-slate-400 hover:text-[#2563EB] transition-all duration-200 transform hover:scale-110" title="View Details">
+          <button className="w-auto text-slate-400 hover:text-[#2563EB] transition-all duration-200 transform hover:scale-110" title="View Details">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
             </svg>
           </button>
-          <button className="text-slate-400 hover:text-[#2563EB] transition-all duration-200 transform hover:scale-110" title="Edit Record">
+          <button className="w-auto text-slate-400 hover:text-[#2563EB] transition-all duration-200 transform hover:scale-110" title="Edit Record">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </button>
         </div>
-        <button className="flex items-center gap-2.5 px-6 py-3 bg-[#E8EAF6] text-[#3F51B5] rounded-xl text-[13px] font-black hover:bg-[#D1D5DB] transition-all duration-200 shadow-sm active:scale-95 group/btn">
+        <button className="w-auto flex items-center gap-2.5 px-6 py-3 bg-[#E8EAF6] text-[#3F51B5] rounded-xl text-[13px] font-black hover:bg-[#D1D5DB] transition-all duration-200 shadow-sm active:scale-95 group/btn">
           <svg className="w-4.5 h-4.5 transition-transform group-hover/btn:-translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
