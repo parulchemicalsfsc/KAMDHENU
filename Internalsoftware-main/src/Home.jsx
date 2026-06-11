@@ -1,48 +1,37 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "./Navbar";
 import "./form.css";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { db } from "./firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import useAuth from "./hooks/useAuth";
+import { addFieldOfficer } from "./services/userService";
+import { toast } from "react-toastify";
 
 export default function Home() {
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
+  const { user, profile, role, canViewHistory } = useAuth();
+  const [officerEmail, setOfficerEmail] = useState("");
+  const [addingOfficer, setAddingOfficer] = useState(false);
 
-  useEffect(() => {
-    const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
+  const handleAddOfficer = async (e) => {
+    e.preventDefault();
+    if (!officerEmail.trim()) return;
 
-      if (currentUser) {
-        console.log("Auth UID:", currentUser.uid);
-        console.log("Auth Email:", currentUser.email);
-
-        try {
-          // Query Firestore by email because doc ID is random
-          const q = query(
-            collection(db, "users"),
-            where("email", "==", currentUser.email)
-          );
-          const querySnapshot = await getDocs(q);
-
-          if (!querySnapshot.empty) {
-            querySnapshot.forEach((doc) => {
-              console.log("Firestore Data:", doc.data());
-              setProfile(doc.data());
-            });
-          } else {
-            console.log("No user found with this email in Firestore");
-          }
-        } catch (err) {
-          console.error("Firestore error:", err);
-        }
+    setAddingOfficer(true);
+    try {
+      const success = await addFieldOfficer(user.uid, officerEmail);
+      if (success) {
+        toast.success(`Successfully added ${officerEmail} as a Field Officer!`);
+        setOfficerEmail("");
+      } else {
+        toast.error(`User with email ${officerEmail} not found.`);
       }
-    });
+    } catch (err) {
+      console.error("Error adding officer:", err);
+      toast.error("Failed to add Field Officer: " + err.message);
+    } finally {
+      setAddingOfficer(false);
+    }
+  };
 
-    return () => unsubscribe();
-  }, []);
 
   return (
     <>
@@ -95,13 +84,16 @@ export default function Home() {
             marginBottom: 32,
           }}
         >
-          <Link
-            to="/form"
-            className="btn-primary"
-            style={{ fontSize: "1.1em", padding: "16px 0" }}
-          >
-            📝 Fill Daily Form
-          </Link>
+          {['admin', 'manager', 'field_officer'].includes(role) && (
+            <Link
+              to="/form"
+              className="btn-primary"
+              style={{ fontSize: "1.1em", padding: "16px 0" }}
+            >
+              📝 Fill Daily Form
+            </Link>
+          )}
+
           <Link
             to="/demo-sales-list"
             className="btn-outline"
@@ -109,20 +101,27 @@ export default function Home() {
           >
             🧾 Demo Sales List
           </Link>
-          <Link
-            to="/demo-history"
-            className="btn-outline"
-            style={{ fontSize: "1.1em", padding: "16px 0" }}
-          >
-            📊 Demo Sales History
-          </Link>
-          <Link
-            to="/MoM-generator"
-            className="btn-outline"
-            style={{ fontSize: "1.1em", padding: "16px 0" }}
-          >
-            📝 Generate MoM
-          </Link>
+
+          {role !== 'field_officer' && (
+            <Link
+              to="/demo-history"
+              className="btn-outline"
+              style={{ fontSize: "1.1em", padding: "16px 0" }}
+            >
+              📊 Demo Sales History
+            </Link>
+          )}
+
+          {role !== 'field_officer' && (
+            <Link
+              to="/MoM-generator"
+              className="btn-outline"
+              style={{ fontSize: "1.1em", padding: "16px 0" }}
+            >
+              📝 Generate MoM
+            </Link>
+          )}
+
           <Link
             to="/member-page"
             className="btn-outline"
@@ -130,14 +129,71 @@ export default function Home() {
           >
             Member Demo Entry
           </Link>
-          <Link
-            to="/history"
-            className="btn-outline"
-            style={{ fontSize: "1.1em", padding: "16px 0" }}
-          >
-            📜 View Submission History
-          </Link>
+
+          {(role === 'admin' || canViewHistory) && (
+            <Link
+              to="/history"
+              className="btn-outline"
+              style={{ fontSize: "1.1em", padding: "16px 0" }}
+            >
+              📜 View Submission History
+            </Link>
+          )}
         </div>
+
+
+        {/* Manager Section: Add Field Officer */}
+        {role === "manager" && (
+          <div
+            className="section-card"
+            style={{
+              background: "#fff",
+              border: "1.5px solid #e2e8f0",
+              margin: "0 auto 24px auto",
+              padding: 20,
+              borderRadius: 12,
+              textAlign: "left"
+            }}
+          >
+            <h3 style={{ color: "#1e293b", margin: "0 0 4px 0", fontSize: "1.1rem", fontWeight: 700 }}>
+              👤 Add Field Officer
+            </h3>
+            <p style={{ color: "#64748b", margin: "0 0 16px 0", fontSize: "0.85rem" }}>
+              Enter the email of a registered user to assign them as a Field Officer.
+            </p>
+            <form onSubmit={handleAddOfficer} style={{ display: "flex", gap: 10 }}>
+              <input
+                type="email"
+                placeholder="Field Officer's email"
+                value={officerEmail}
+                onChange={(e) => setOfficerEmail(e.target.value)}
+                required
+                style={{
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1.5px solid #cbd5e1",
+                  fontSize: "0.95rem"
+                }}
+              />
+              <button
+                type="submit"
+                disabled={addingOfficer}
+                className="btn-primary"
+                style={{
+                  padding: "0 18px",
+                  borderRadius: 8,
+                  fontSize: "0.95rem",
+                  fontWeight: 600,
+                  whiteSpace: "nowrap"
+                }}
+              >
+                {addingOfficer ? "Adding..." : "Add"}
+              </button>
+            </form>
+          </div>
+        )}
+
 
         <div
           className="section-card"

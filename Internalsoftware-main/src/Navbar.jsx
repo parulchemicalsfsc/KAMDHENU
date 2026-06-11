@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "./assets/logo.png";
 import "./form.css";
-import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
-import { useNavigate } from "react-router-dom";
-
+import { getAuth, signOut } from "firebase/auth";
+import useAuth from "./hooks/useAuth";
 
 export default function Navbar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobile, setMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [user, setUser] = useState(null);
-  // Define navLinks array for navigation
-  const navLinks = [
+  const { role, canViewHistory } = useAuth();
+
+  // Define base navLinks array for navigation
+  const baseNavLinks = [
     { to: '/', label: 'Home' },
     { to: '/form', label: 'Daily Form' },
     { to: '/demo-sales-list', label: 'Demo Sales List' },
@@ -22,13 +23,32 @@ export default function Navbar() {
     { to: '/view-route', label: 'View Route' },
   ];
 
-useEffect(() => {
-    const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
+  // Filter links dynamically based on user role and history permissions
+  const navLinks = baseNavLinks.filter(link => {
+    // Open pages for all authenticated users
+    if (['/', '/member-page', '/route-planner', '/view-route'].includes(link.to)) {
+      return true;
+    }
+    // Demo sales is open to all users
+    if (link.to === '/demo-sales-list') {
+      return true;
+    }
+    // Daily Form is restricted to Admin, Manager, and Field Officer
+    if (link.to === '/form') {
+      return ['admin', 'manager', 'field_officer'].includes(role);
+    }
+    // History requires Admin role or explicit access granted by Admin
+    if (link.to === '/history') {
+      return role === 'admin' || canViewHistory;
+    }
+    return false;
+  });
+
+
+  // Append Admin Panel page for Admin users
+  if (role === 'admin') {
+    navLinks.push({ to: '/admin-panel', label: 'Admin Panel' });
+  }
 
   // ✅ Define logout function properly
   const handleLogout = async () => {
@@ -43,6 +63,7 @@ useEffect(() => {
       console.error("Error during logout:", error);
     }
   };
+
 
   useEffect(() => {
     const handleResize = () => {

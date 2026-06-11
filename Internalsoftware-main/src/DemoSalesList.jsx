@@ -521,16 +521,38 @@ async function startDemo() {
     return;
   }
 
-  const docRef = await addDoc(collection(db, "demosales"), {
-    village: villageName,
-    customers: [],
-    status: "active",
-    createdAt: new Date(),
-  });
+  try {
+    const docRef = await addDoc(collection(db, "demosales"), {
+      village: villageName,
+      customers: [],
+      status: "active",
+      createdAt: new Date(),
+    });
 
-  setDemoId(docRef.id);
-  toast.success("Demo started!");
+    setDemoId(docRef.id);
+    
+    // Automatically transition the current user to the 'manager' role
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.email) {
+      const q = query(collection(db, "users"), where("email", "==", currentUser.email));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const userDoc = snap.docs[0];
+        await updateDoc(userDoc.ref, { role: "manager" });
+        toast.success("Demo started! You are now the Manager for this session.");
+      } else {
+        toast.success("Demo started!");
+      }
+    } else {
+      toast.success("Demo started!");
+    }
+  } catch (err) {
+    console.error("Error starting demo:", err);
+    toast.error("Error starting demo: " + err.message);
+  }
 }
+
 
 // Auto-save demoInfo to Firebase villageDemo when it changes
 useEffect(() => {

@@ -10,6 +10,8 @@ import MoMForm from './MoMForm.jsx';
 import ViewRoute from './ViewRoute.jsx';
 import RequireAuth from './RequireAuth';
 import MemberPage from './MemberPage';
+import RequireRole from './components/RequireRole';
+import AdminPanel from './pages/AdminPanel';
 import './form.css';
 
 // ✅ import ToastContainer once at the top level
@@ -21,46 +23,70 @@ export default function App() {
     <>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/member-page" element={<MemberPage />} />
+        
+        {/* Open routes accessible to all authenticated users */}
+        <Route path="/member-page" element={
+          <RequireAuth>
+            <MemberPage />
+          </RequireAuth>
+        } />
+        
         <Route path="/" element={
           <RequireAuth>
             <Home />
           </RequireAuth>
         } />
 
-        <Route path="/form" element={
-          <RequireAuth>
-            <FieldOfficerForm />
-          </RequireAuth>
-        } />
-        <Route path="/history" element={
-          <RequireAuth>
-            <HistoryPage />
-          </RequireAuth>
-        } />
-
-        <Route path="/mom-generator" element={<MoMForm />} />
-
-        <Route path="/demo-sales-list" element={
-          <RequireAuth>
-            <DemoSalesList />
-          </RequireAuth>
-        } />
-        <Route path="/delete" element={
-          <RequireAuth>
-            <DeleteRecords />
-          </RequireAuth>
-        } />
         <Route path="/route-planner" element={
           <RequireAuth>
             <RoutePlanner />
           </RequireAuth>
         } />
+        
         <Route path="/view-route" element={
           <RequireAuth>
             <ViewRoute />
           </RequireAuth>
         } />
+
+        <Route path="/demo-sales-list" element={
+          <RequireRole allowedRoles={['admin', 'manager', 'user', 'field_officer']}>
+            <DemoSalesList />
+          </RequireRole>
+        } />
+
+
+        <Route path="/mom-generator" element={
+          <RequireAuth>
+            <MoMForm />
+          </RequireAuth>
+        } />
+
+        {/* Role-guarded routes */}
+        <Route path="/form" element={
+          <RequireRole allowedRoles={['admin', 'manager', 'field_officer']}>
+            <FieldOfficerForm />
+          </RequireRole>
+        } />
+        
+        <Route path="/history" element={
+          <RequireRole checkHistoryAccess={true}>
+            <HistoryPage />
+          </RequireRole>
+        } />
+
+        <Route path="/delete" element={
+          <RequireRole allowedRoles={['admin']}>
+            <DeleteRecords />
+          </RequireRole>
+        } />
+
+        <Route path="/admin-panel" element={
+          <RequireRole allowedRoles={['admin']}>
+            <AdminPanel />
+          </RequireRole>
+        } />
+
         <Route path="*" element={<div>404 Not Found</div>} />
       </Routes>
 
@@ -69,3 +95,4 @@ export default function App() {
     </>
   );
 }
+
