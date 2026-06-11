@@ -14,10 +14,12 @@ export default function AdminPanel() {
   useEffect(() => {
     // Set up a real-time listener for all user profiles
     const unsub = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const usersList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const usersList = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        .filter(u => u.role !== 'admin');
       // Sort users by email for structured display
       usersList.sort((a, b) => (a.email || '').localeCompare(b.email || ''));
       setUsers(usersList);
