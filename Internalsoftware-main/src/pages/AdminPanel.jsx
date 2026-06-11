@@ -4,8 +4,10 @@ import { db } from '../firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { toggleHistoryAccess, updateUserRole } from '../services/userService';
 import { toast } from 'react-toastify';
+import useAuth from '../hooks/useAuth';
 
 export default function AdminPanel() {
+  const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,9 +31,9 @@ export default function AdminPanel() {
     return () => unsub();
   }, []);
 
-  const handleRoleChange = async (userId, newRole) => {
+  const handleRoleChange = async (userId, newRole, targetEmail) => {
     try {
-      await updateUserRole(userId, newRole);
+      await updateUserRole(userId, newRole, targetEmail, user?.email);
       toast.success("User role updated successfully!");
     } catch (error) {
       console.error("Error changing role:", error);
@@ -122,7 +124,7 @@ export default function AdminPanel() {
                       <td style={{ padding: '16px 16px' }}>
                         <select
                           value={u.role || 'user'}
-                          onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                          onChange={(e) => handleRoleChange(u.id, e.target.value, u.email)}
                           style={{
                             padding: '8px 12px',
                             borderRadius: 6,

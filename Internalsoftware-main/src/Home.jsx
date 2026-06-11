@@ -17,7 +17,7 @@ export default function Home() {
 
     setAddingOfficer(true);
     try {
-      const success = await addFieldOfficer(user.uid, officerEmail);
+      const success = await addFieldOfficer(user.uid, officerEmail, user.email);
       if (success) {
         toast.success(`Successfully added ${officerEmail} as a Field Officer!`);
         setOfficerEmail("");
