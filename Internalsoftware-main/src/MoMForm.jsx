@@ -56,8 +56,13 @@ const handleParticipantChange = (selectedOptions) => {
       summary,
       timestamp: Timestamp.now()
     };
-    await addDoc(collection(db, "demo_moms"), payload);
-    alert("MoM Saved to Firestore");
+    try {
+      await addDoc(collection(db, "demo_moms"), payload);
+      toast.success("MoM saved successfully! ✓");
+    } catch (err) {
+      console.error("Error saving MoM:", err);
+      toast.error("Failed to save MoM. Please try again.");
+    }
   };
 
   const generatePDF = () => {
