@@ -465,30 +465,41 @@ const compressImage = (base64String) => {
                   </div>
                   {customerInput.photo && (
                     <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <img src={customerInput.photo} alt="preview" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd' }} />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomerInput(prev => ({ ...prev, photo: '', photoPreview: '' }));
-                          toast.success("Photo removed");
-                        }}
-                        style={{
-                          padding: '6px 10px',
-                          background: '#ef4444',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                          fontWeight: 700,
-                          fontSize: '0.9em',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseOver={(e) => e.target.style.background = '#dc2626'}
-                        onMouseOut={(e) => e.target.style.background = '#ef4444'}
-                        title="Delete photo"
-                      >
-                        ✕ Delete
-                      </button>
+                      <div style={{ position: 'relative', width: 64, height: 64 }}>
+                        <img src={customerInput.photo} alt="preview" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd' }} />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomerInput(prev => ({ ...prev, photo: '', photoPreview: '' }));
+                            toast.success("Photo removed");
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: -8,
+                            right: -8,
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            background: '#ef4444',
+                            color: '#fff',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: 700,
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: 0,
+                            transition: 'all 0.2s',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                          }}
+                          onMouseOver={(e) => e.target.style.background = '#dc2626'}
+                          onMouseOut={(e) => e.target.style.background = '#ef4444'}
+                          title="Delete photo"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

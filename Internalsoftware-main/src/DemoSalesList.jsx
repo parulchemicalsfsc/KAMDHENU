@@ -913,7 +913,7 @@ useEffect(() => {
       customers: dummyCustomers,
     });
     setCustomers(dummyCustomers);
-    alert("Customers added!");
+    toast.success("Customers added successfully!");
   }
 
 
@@ -979,7 +979,7 @@ useEffect(() => {
   // Location
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser.");
+      toast.error("Location access is not supported by your browser.");
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -990,9 +990,11 @@ useEffect(() => {
           latitude: latitude.toFixed(6),
           longitude: longitude.toFixed(6),
         }));
+        toast.success("Location captured successfully!");
       },
       (error) => {
-        alert("Error getting location: " + error.message);
+        console.error("Error getting location:", error);
+        toast.error("Could not get location. Please check your permissions.");
       }
     );
   };
@@ -1560,93 +1562,99 @@ const handleSelectExcelCustomer = (customer) => {
     }
   };
   const handleExportPDF = () => {
-    const doc = new jsPDF();
+    try {
+      const doc = new jsPDF();
 
-    if (notoSansGujarati && notoSansGujarati.fontName && notoSansGujarati.fontData) {
-      doc.addFileToVFS("NotoSansGujarati-Regular.ttf", notoSansGujarati.fontData);
-      doc.addFont("NotoSansGujarati-Regular.ttf", "NotoSansGujarati", "normal");
-    }
+      if (notoSansGujarati && notoSansGujarati.fontName && notoSansGujarati.fontData) {
+        doc.addFileToVFS("NotoSansGujarati-Regular.ttf", notoSansGujarati.fontData);
+        doc.addFont("NotoSansGujarati-Regular.ttf", "NotoSansGujarati", "normal");
+      }
 
-    let y = 10;
-    doc.setFontSize(16);
-    doc.text("Demo Sales Report", 14, y);
-    y += 10;
+      let y = 10;
+      doc.setFontSize(16);
+      doc.text("Demo Sales Report", 14, y);
+      y += 10;
 
-    doc.setFontSize(11);
-    const lines = [
-      `Date: ${demoInfo.date || "-"}`,
-      `Village: ${demoInfo.village || "-"}`,
-      `Taluka: ${demoInfo.taluka || "-"}`,
-      `Mantri: ${demoInfo.mantri || "-"}`,
-      `Total Milk: ${demoInfo.totalMilk || "-"}`,
-      `Active Sabhasad: ${demoInfo.activeSabhasad || "-"}`,
-      `Team Members: ${demoInfo.teamMembers || "-"}`,
-      `Entry By: ${demoInfo.entryBy || "-"}`,
-      `Demo Remarks: ${demoInfo.demoRemarks || "-"}`,
-    ];
-    lines.forEach((t) => {
-      doc.text(t, 14, y);
-      y += 7;
-    });
-    y += 3;
-
-  // Allow PDF export even if no customers
-  if (customers.length > 0) {
-      doc.setFontSize(13);
-      doc.text("Customers", 14, y);
-      y += 4;
-      doc.autoTable({
-        startY: y,
-        head: [["Name", "Code", "Mobile", "Packaging", "Qty", "Remarks"]],
-        body: customers.map((c) => [
-          c.name,
-          c.code,
-          c.mobile,
-          c.orderPackaging,
-          c.orderQty,
-          c.remarks,
-        ]),
-        theme: "grid",
-        styles: { fontSize: 10 },
-        columnStyles: { 5: { font: "NotoSansGujarati" } },
-        margin: { left: 14, right: 14 },
+      doc.setFontSize(11);
+      const lines = [
+        `Date: ${demoInfo.date || "-"}`,
+        `Village: ${demoInfo.village || "-"}`,
+        `Taluka: ${demoInfo.taluka || "-"}`,
+        `Mantri: ${demoInfo.mantri || "-"}`,
+        `Total Milk: ${demoInfo.totalMilk || "-"}`,
+        `Active Sabhasad: ${demoInfo.activeSabhasad || "-"}`,
+        `Team Members: ${demoInfo.teamMembers || "-"}`,
+        `Entry By: ${demoInfo.entryBy || "-"}`,
+        `Demo Remarks: ${demoInfo.demoRemarks || "-"}`,
+      ];
+      lines.forEach((t) => {
+        doc.text(t, 14, y);
+        y += 7;
       });
-      y = doc.lastAutoTable.finalY + 6;
-    }
+      y += 3;
 
-  // Include Stock Taken (for Demo) if present
-  if (stockTaken.length > 0) {
-      doc.setFontSize(13);
-      doc.text("Stock Taken (for Demo)", 14, y);
-      y += 4;
-      doc.autoTable({
-        startY: y,
-        head: [["Packaging", "Quantity"]],
-        body: stockTaken.map((s) => [s.packaging, s.quantity]),
-        theme: "grid",
-        styles: { fontSize: 10 },
-        margin: { left: 14, right: 14 },
-      });
-      y = doc.lastAutoTable.finalY + 6;
-    }
+      // Allow PDF export even if no customers
+      if (customers.length > 0) {
+        doc.setFontSize(13);
+        doc.text("Customers", 14, y);
+        y += 4;
+        doc.autoTable({
+          startY: y,
+          head: [["Name", "Code", "Mobile", "Packaging", "Qty", "Remarks"]],
+          body: customers.map((c) => [
+            c.name,
+            c.code,
+            c.mobile,
+            c.orderPackaging,
+            c.orderQty,
+            c.remarks,
+          ]),
+          theme: "grid",
+          styles: { fontSize: 10 },
+          columnStyles: { 5: { font: "NotoSansGujarati" } },
+          margin: { left: 14, right: 14 },
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      }
 
-  // Include Stock at Dairy
-  if (stockAtDairy.length > 0) {
-      doc.setFontSize(13);
-      doc.text("Stock at Dairy", 14, y);
-      y += 4;
-      doc.autoTable({
-        startY: y,
-        head: [["Packaging", "Quantity"]],
-        body: stockAtDairy.map((s) => [s.packaging, s.quantity]),
-        theme: "grid",
-        styles: { fontSize: 10 },
-        margin: { left: 14, right: 14 },
-      });
-      y = doc.lastAutoTable.finalY + 6;
-    }
+      // Include Stock Taken (for Demo) if present
+      if (stockTaken.length > 0) {
+        doc.setFontSize(13);
+        doc.text("Stock Taken (for Demo)", 14, y);
+        y += 4;
+        doc.autoTable({
+          startY: y,
+          head: [["Packaging", "Quantity"]],
+          body: stockTaken.map((s) => [s.packaging, s.quantity]),
+          theme: "grid",
+          styles: { fontSize: 10 },
+          margin: { left: 14, right: 14 },
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      }
 
-    doc.save(`DemoSales_${demoInfo.date || "export"}.pdf`);
+      // Include Stock at Dairy
+      if (stockAtDairy.length > 0) {
+        doc.setFontSize(13);
+        doc.text("Stock at Dairy", 14, y);
+        y += 4;
+        doc.autoTable({
+          startY: y,
+          head: [["Packaging", "Quantity"]],
+          body: stockAtDairy.map((s) => [s.packaging, s.quantity]),
+          theme: "grid",
+          styles: { fontSize: 10 },
+          margin: { left: 14, right: 14 },
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      }
+
+      doc.save(`DemoSales_${demoInfo.date || "export"}.pdf`);
+      toast.success("PDF downloaded successfully!");
+    } catch (e) {
+      console.error("Failed to generate PDF:", e);
+      toast.error("Failed to generate PDF. Please try again.");
+    }
   };
 
   // Random winners
@@ -2797,30 +2805,41 @@ ${paymentLines || "—"}
                   </div>
                   {(customerInput.photo || customerInput.photoPreview) && (
                     <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <img src={customerInput.photo || customerInput.photoPreview} alt="preview" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd' }} />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomerInput(prev => ({ ...prev, photo: '', photoPreview: '' }));
-                          toast.success("Photo removed");
-                        }}
-                        style={{
-                          padding: '6px 10px',
-                          background: '#ef4444',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                          fontWeight: 700,
-                          fontSize: '0.9em',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseOver={(e) => e.target.style.background = '#dc2626'}
-                        onMouseOut={(e) => e.target.style.background = '#ef4444'}
-                        title="Delete photo"
-                      >
-                        ✕ Delete
-                      </button>
+                      <div style={{ position: 'relative', width: 64, height: 64 }}>
+                        <img src={customerInput.photo || customerInput.photoPreview} alt="preview" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd' }} />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomerInput(prev => ({ ...prev, photo: '', photoPreview: '' }));
+                            toast.success("Photo removed");
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: -8,
+                            right: -8,
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            background: '#ef4444',
+                            color: '#fff',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: 700,
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: 0,
+                            transition: 'all 0.2s',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                          }}
+                          onMouseOver={(e) => e.target.style.background = '#dc2626'}
+                          onMouseOut={(e) => e.target.style.background = '#ef4444'}
+                          title="Delete photo"
+                        >
+                          ✕
+                        </button>
+                      </div>
                       {uploadingPhoto && (
                         <div style={{ fontSize: 11, color: '#6b7280' }}>Uploading...</div>
                       )}

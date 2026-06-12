@@ -5,6 +5,7 @@ import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "./firebase";
 import Navbar from "./Navbar";
 import "./form.css";
+import { toast } from "react-toastify";
 
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -67,7 +68,8 @@ export default function DemoSalesHistory() {
         });
         setRecords(docs);
       } catch (err) {
-        alert("Error loading demo sales history: " + err.message);
+        console.error("Error loading demo sales history:", err);
+        toast.error("Something went wrong while loading history. Please try again.");
       }
       setLoading(false);
     };
@@ -277,6 +279,7 @@ export default function DemoSalesHistory() {
                           saveAs(blob, filename);
 
                           setDownloadedId(r.id);
+                          toast.success('Excel downloaded successfully! ✓');
                           setTimeout(() => setDownloadedId(null), 1500);
 
                         } catch (e) {
@@ -350,6 +353,7 @@ export default function DemoSalesHistory() {
 
                           doc.save(`DemoSales_${r.date || 'export'}.pdf`);
                           setDownloadedId(r.id);
+                          toast.success('PDF downloaded successfully! ✓');
                           setTimeout(() => setDownloadedId(null), 1500);
 
                         } catch (e) {
@@ -407,7 +411,8 @@ export default function DemoSalesHistory() {
                                   await import('firebase/firestore').then(({ deleteDoc, doc }) => deleteDoc(doc(db, 'demoSales', r.id)));
                                   setRecords(prev => prev.filter(rec => rec.id !== r.id));
                                 } catch (err) {
-                                  alert('Error deleting record: ' + err.message);
+                                  console.error("Error deleting record:", err);
+                                  toast.error("Could not delete record. Please try again.");
                                 }
                               }
                             }}>Delete</button>

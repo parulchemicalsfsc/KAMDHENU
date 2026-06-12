@@ -144,14 +144,14 @@ export default function MemberPage() {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert("Please select a valid image file");
+      toast.error("Please select a valid image file (JPG, PNG, etc.)");
       return;
     }
 
     // Check original file size
     const originalSizeInMB = file.size / (1024 * 1024);
     if (originalSizeInMB > 10) {
-      alert("Original file size is too large (>10MB). Please select a smaller image.");
+      toast.error("Image is too large (>10MB). Please select a smaller image.");
       return;
     }
 
@@ -173,11 +173,11 @@ export default function MemberPage() {
       }));
       
       setUploadingPhoto(false);
-      alert(`Photo loaded and compressed successfully!\nSize: ${compressedSizeInMB.toFixed(2)}MB`);
+      toast.success(`Photo loaded and compressed to ${compressedSizeInMB.toFixed(2)}MB ✓`);
     } catch (err) {
       console.error('Error processing photo:', err);
       setUploadingPhoto(false);
-      alert('Photo processing failed: ' + (err.message || err));
+      toast.error('Photo processing failed. Please try a different image.');
     }
   };
 
@@ -348,10 +348,10 @@ export default function MemberPage() {
             console.error("Error saving Excel row:", err);
           }
         }
-        alert("Excel data uploaded successfully!");
+        toast.success("Excel data uploaded successfully!");
       } catch (err) {
         console.error('Excel upload failed:', err);
-        alert('Excel upload failed: ' + (err.message || err));
+        toast.error('Excel upload failed. Please check the file format and try again.');
       }
     };
     reader.readAsArrayBuffer(file);
@@ -383,8 +383,8 @@ export default function MemberPage() {
   // 🔹 Update Customer
   const handleUpdateCustomer = async () => {
     if (!editingCustomerId) return;
-    if (uploadingPhoto) { alert('Please wait until photo upload completes'); return; }
-    if (!customerInput.name.trim() || !customerInput.mobile.trim()) { alert("Fill required fields"); return; }
+    if (uploadingPhoto) { toast.warn('Please wait until photo upload completes'); return; }
+    if (!customerInput.name.trim() || !customerInput.mobile.trim()) { toast.warn("Please fill in Name and Mobile fields"); return; }
 
     try {
       await updateDoc(doc(db, "customers", editingCustomerId), {
@@ -420,9 +420,9 @@ export default function MemberPage() {
   };
 
   const handleSaveCustomer = async () => {
-    if (!selectedVillageid) { alert("Select a village first"); return; }
-    if (uploadingPhoto) { alert('Please wait until photo upload completes'); return; }
-    if (!customerInput.name.trim() || !customerInput.mobile.trim()) { alert("Fill required fields"); return; }
+    if (!selectedVillageid) { toast.warn("Please select a village first"); return; }
+    if (uploadingPhoto) { toast.warn('Please wait until photo upload completes'); return; }
+    if (!customerInput.name.trim() || !customerInput.mobile.trim()) { toast.warn("Please fill in Name and Mobile fields"); return; }
 
     // If editing, call update instead
     if (editingCustomerId) {
@@ -483,9 +483,10 @@ export default function MemberPage() {
       }
 
       setCustomerInput({ name: "", code: "", mobile: "", orderPackaging: "", orderQty: "", remarks: "", photoPreview: null });
-      alert("Customer added successfully!");
+      toast.success("Customer added successfully! ✓");
     } catch (err) {
-      alert("Error saving customer: " + err.message);
+      console.error("Error saving customer:", err);
+      toast.error("Could not save customer. Please try again.");
     }
   };
 
@@ -866,13 +867,47 @@ export default function MemberPage() {
 
         {/* Photo Preview */}
         {(customerInput.photo || customerInput.photoPreview) && (
-          <div style={{ marginBottom: 16, textAlign: "center" }}>
+          <div style={{ marginBottom: 16, textAlign: "left" }}>
             <div style={{ fontSize: "0.9em", fontWeight: 600, color: "#0369a1", marginBottom: 8 }}>📸 Photo Preview</div>
-            <img
-              src={customerInput.photo || customerInput.photoPreview}
-              alt="preview"
-              style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 8, border: "2px solid #0284c7", boxShadow: "0 2px 8px rgba(2, 132, 199, 0.2)" }}
-            />
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <img
+                src={customerInput.photo || customerInput.photoPreview}
+                alt="preview"
+                style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 8, border: "2px solid #0284c7", boxShadow: "0 2px 8px rgba(2, 132, 199, 0.2)" }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomerInput(prev => ({ ...prev, photo: '', photoPreview: '' }));
+                  toast.success("Photo removed");
+                }}
+                style={{
+                  position: 'absolute',
+                  top: -8,
+                  right: -8,
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  background: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  transition: 'all 0.2s',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}
+                onMouseOver={(e) => e.target.style.background = '#dc2626'}
+                onMouseOut={(e) => e.target.style.background = '#ef4444'}
+                title="Delete photo"
+              >
+                ✕
+              </button>
+            </div>
           </div>
         )}
 

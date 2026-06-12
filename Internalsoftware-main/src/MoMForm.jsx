@@ -3,6 +3,7 @@ import jsPDF from "jspdf";
 import { db } from "./firebase";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
 import Navbar from "./Navbar";
+import { toast } from "react-toastify";
 
 
 const participantsList = ["JASH ILASARIYA", "SONAL MADAM", "BHAVIN PRAJAPATI", "MAULIC SHAH", "JIGAR SHAH", "SHUBHAM", "MISTRY SIR", "JYOTIKA", "BHAVISHA", "PARUL BEN", "MALA BEN", "PRIYANKA BEN ", "OMKAR SIR", "SANKET SIR", "ALPESH SIR"];
@@ -72,6 +73,7 @@ const handleParticipantChange = (selectedOptions) => {
     doc.text("Action Items:", 20, 90);
     doc.text(summary?.actions || "None", 20, 96);
     doc.save("MoM.pdf");
+    toast.success("PDF downloaded successfully! ✓");
   };
 
   return (

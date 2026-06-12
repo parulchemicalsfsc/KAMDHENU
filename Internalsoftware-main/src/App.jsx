@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import Home from './Home';
 import FieldOfficerForm from './FieldOfficerForm';
 import DemoSalesList from './DemoSalesList';
+import DemoSalesHistory from './DemoSalesHistory';
 import DeleteRecords from './DeleteRecords';
 import HistoryPage from './components/History/HistoryPage';
 import RoutePlanner from './RoutePlanner';
@@ -12,6 +13,7 @@ import RequireAuth from './RequireAuth';
 import MemberPage from './MemberPage';
 import RequireRole from './components/RequireRole';
 import AdminPanel from './pages/AdminPanel';
+import ErrorBoundary from './components/ErrorBoundary';
 import './form.css';
 
 // ✅ import ToastContainer once at the top level
@@ -22,69 +24,96 @@ export default function App() {
   return (
     <>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        
+        <Route path="/login" element={<ErrorBoundary><Login /></ErrorBoundary>} />
+
         {/* Open routes accessible to all authenticated users */}
         <Route path="/member-page" element={
-          <RequireAuth>
-            <MemberPage />
-          </RequireAuth>
+          <ErrorBoundary>
+            <RequireAuth>
+              <MemberPage />
+            </RequireAuth>
+          </ErrorBoundary>
         } />
-        
+
         <Route path="/" element={
-          <RequireAuth>
-            <Home />
-          </RequireAuth>
+          <ErrorBoundary>
+            <RequireAuth>
+              <Home />
+            </RequireAuth>
+          </ErrorBoundary>
         } />
 
         <Route path="/route-planner" element={
-          <RequireAuth>
-            <RoutePlanner />
-          </RequireAuth>
+          <ErrorBoundary>
+            <RequireAuth>
+              <RoutePlanner />
+            </RequireAuth>
+          </ErrorBoundary>
         } />
-        
+
         <Route path="/view-route" element={
-          <RequireAuth>
-            <ViewRoute />
-          </RequireAuth>
+          <ErrorBoundary>
+            <RequireAuth>
+              <ViewRoute />
+            </RequireAuth>
+          </ErrorBoundary>
         } />
 
         <Route path="/demo-sales-list" element={
-          <RequireRole allowedRoles={['admin', 'manager', 'user', 'field_officer']}>
-            <DemoSalesList />
-          </RequireRole>
+          <ErrorBoundary>
+            <RequireRole allowedRoles={['admin', 'manager', 'user', 'field_officer']}>
+              <DemoSalesList />
+            </RequireRole>
+          </ErrorBoundary>
         } />
 
+        <Route path="/demo-history" element={
+          <ErrorBoundary>
+            <RequireAuth>
+              <DemoSalesHistory />
+            </RequireAuth>
+          </ErrorBoundary>
+        } />
 
         <Route path="/mom-generator" element={
-          <RequireAuth>
-            <MoMForm />
-          </RequireAuth>
+          <ErrorBoundary>
+            <RequireAuth>
+              <MoMForm />
+            </RequireAuth>
+          </ErrorBoundary>
         } />
 
         {/* Role-guarded routes */}
         <Route path="/form" element={
-          <RequireRole allowedRoles={['admin', 'manager', 'field_officer']}>
-            <FieldOfficerForm />
-          </RequireRole>
+          <ErrorBoundary>
+            <RequireRole allowedRoles={['admin', 'manager', 'field_officer']}>
+              <FieldOfficerForm />
+            </RequireRole>
+          </ErrorBoundary>
         } />
-        
+
         <Route path="/history" element={
-          <RequireRole checkHistoryAccess={true}>
-            <HistoryPage />
-          </RequireRole>
+          <ErrorBoundary>
+            <RequireRole checkHistoryAccess={true}>
+              <HistoryPage />
+            </RequireRole>
+          </ErrorBoundary>
         } />
 
         <Route path="/delete" element={
-          <RequireRole allowedRoles={['admin']}>
-            <DeleteRecords />
-          </RequireRole>
+          <ErrorBoundary>
+            <RequireRole allowedRoles={['admin']}>
+              <DeleteRecords />
+            </RequireRole>
+          </ErrorBoundary>
         } />
 
         <Route path="/admin-panel" element={
-          <RequireRole allowedRoles={['admin']}>
-            <AdminPanel />
-          </RequireRole>
+          <ErrorBoundary>
+            <RequireRole allowedRoles={['admin']}>
+              <AdminPanel />
+            </RequireRole>
+          </ErrorBoundary>
         } />
 
         <Route path="*" element={<div>404 Not Found</div>} />

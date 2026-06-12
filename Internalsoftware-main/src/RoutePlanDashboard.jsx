@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Navbar from './Navbar';
+import { toast } from 'react-toastify';
 
 // Mock data for demonstration
 const mockDates = [
@@ -27,7 +28,7 @@ export default function RoutePlanDashboard() {
   };
   const handleSave = () => {
     // Save logic here (mock)
-    alert('Saved!');
+    toast.success("Route plan saved successfully! ✓");
   };
 
   return (

@@ -7,6 +7,7 @@ import { db } from './firebase';
 import Navbar from './Navbar';
 import NotoSansGujarati from './fonts/NotoSansGujarati-Regular';
 import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { toast } from "react-toastify";
 const REVIEWERS = [
   'Maulik Shah',
   'Jigar Shah',
@@ -37,7 +38,9 @@ export default function History() {
         );
         setHistory(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (e) {
+        console.error("Failed to load history:", e);
         setError('Failed to load history');
+        toast.error("Failed to load history data. Please refresh.");
       }
       setLoading(false);
     }
@@ -73,50 +76,56 @@ export default function History() {
 
   // PDF export (matches FieldOfficerForm format)
   const exportRecordToPDF = async (record) => {
-    const doc = new jsPDF();
-    doc.setFont('helvetica');
-    doc.setFontSize(16);
-    doc.text('Daily Form Data', 14, 18);
-    doc.setFontSize(11);
-    doc.text(`Officer: ${record.officerName || '-'} | Date: ${record.date || '-'}`, 14, 28);
-    doc.text(`Working Type: ${record.workingType || '-'} | KMs: ${record.kms || '-'}`, 14, 36);
-    doc.text(`Punch In: ${record.punchIn || '-'} | Punch Out: ${record.punchOut || '-'} | Hours: ${record.hours || '-'}`, 14, 44);
-    doc.text(`Entry By: ${record.entryBy || '-'}`, 14, 52);
-    doc.text(`Reviewer: ${record.reviewer || '-'}`, 14, 60);
-    doc.text(`Reviewer Comment: ${record.reviewerComment || '-'}`, 14, 68);
-    doc.text('Visited Locations:', 14, 78);
-    (record.locations || []).forEach((loc, i) => {
-      if (loc) doc.text(`- ${loc}`, 20, 86 + i * 7);
-    });
-    let y = 86 + (record.locations?.length || 0) * 7 + 6;
-    doc.text('Customers:', 14, y);
-    y += 6;
-    (record.customers || []).forEach((c, i) => {
-      if (c.name) {
-        doc.text(`${i + 1}. ${c.name} (${c.type || ''})`, 18, y);
-        y += 6;
-        if (c.address) { doc.text(`Address: ${c.address}`, 22, y); y += 6; }
-        if (c.phone) { doc.text(`Phone: ${c.phone}`, 22, y); y += 6; }
-        if (c.remark) { doc.text(`Remark: ${c.remark}`, 22, y); y += 6; }
-        if (c.orders && c.orders.length > 0) {
-          c.orders.forEach((o, j) => {
-            if (o.packaging && o.quantity) {
-              doc.text(`Order: ${o.packaging} x ${o.quantity}`, 26, y); y += 6;
-            }
-          });
+    try {
+      const doc = new jsPDF();
+      doc.setFont('helvetica');
+      doc.setFontSize(16);
+      doc.text('Daily Form Data', 14, 18);
+      doc.setFontSize(11);
+      doc.text(`Officer: ${record.officerName || '-'} | Date: ${record.date || '-'}`, 14, 28);
+      doc.text(`Working Type: ${record.workingType || '-'} | KMs: ${record.kms || '-'}`, 14, 36);
+      doc.text(`Punch In: ${record.punchIn || '-'} | Punch Out: ${record.punchOut || '-'} | Hours: ${record.hours || '-'}`, 14, 44);
+      doc.text(`Entry By: ${record.entryBy || '-'}`, 14, 52);
+      doc.text(`Reviewer: ${record.reviewer || '-'}`, 14, 60);
+      doc.text(`Reviewer Comment: ${record.reviewerComment || '-'}`, 14, 68);
+      doc.text('Visited Locations:', 14, 78);
+      (record.locations || []).forEach((loc, i) => {
+        if (loc) doc.text(`- ${loc}`, 20, 86 + i * 7);
+      });
+      let y = 86 + (record.locations?.length || 0) * 7 + 6;
+      doc.text('Customers:', 14, y);
+      y += 6;
+      (record.customers || []).forEach((c, i) => {
+        if (c.name) {
+          doc.text(`${i + 1}. ${c.name} (${c.type || ''})`, 18, y);
+          y += 6;
+          if (c.address) { doc.text(`Address: ${c.address}`, 22, y); y += 6; }
+          if (c.phone) { doc.text(`Phone: ${c.phone}`, 22, y); y += 6; }
+          if (c.remark) { doc.text(`Remark: ${c.remark}`, 22, y); y += 6; }
+          if (c.orders && c.orders.length > 0) {
+            c.orders.forEach((o, j) => {
+              if (o.packaging && o.quantity) {
+                doc.text(`Order: ${o.packaging} x ${o.quantity}`, 26, y); y += 6;
+              }
+            });
+          }
+          y += 2;
         }
-        y += 2;
-      }
-    });
-    y += 4;
-    doc.text('Notes:', 14, y); y += 6;
-    doc.text(record.notes || '-', 18, y); y += 8;
-    doc.text('Remarks:', 14, y); y += 6;
-    doc.text(record.remarks || '-', 18, y); y += 8;
-    doc.text('Expenses:', 14, y); y += 6;
-    const exp = record.expenses || { food: 0, fuel: 0, total: 0 };
-    doc.text(`Food Allowance: ₹${exp.food} | Fuel: ₹${exp.fuel} | Total: ₹${exp.total}`, 18, y);
-    doc.save(`DailyForm_${record.officerName || 'data'}_${record.date || ''}.pdf`);
+      });
+      y += 4;
+      doc.text('Notes:', 14, y); y += 6;
+      doc.text(record.notes || '-', 18, y); y += 8;
+      doc.text('Remarks:', 14, y); y += 6;
+      doc.text(record.remarks || '-', 18, y); y += 8;
+      doc.text('Expenses:', 14, y); y += 6;
+      const exp = record.expenses || { food: 0, fuel: 0, total: 0 };
+      doc.text(`Food Allowance: ₹${exp.food} | Fuel: ₹${exp.fuel} | Total: ₹${exp.total}`, 18, y);
+      doc.save(`DailyForm_${record.officerName || 'data'}_${record.date || ''}.pdf`);
+      toast.success("PDF generated successfully!");
+    } catch (e) {
+      console.error("PDF generation failed:", e);
+      toast.error("Failed to generate PDF. Please try again.");
+    }
   };
 
   // Add/Edit Comment
@@ -125,7 +134,10 @@ export default function History() {
   };
   const closeCommentModal = () => setCommentModal({ open: false, id: null, reviewer: '', text: '' });
   const saveComment = async () => {
-    if (!commentModal.reviewer) return alert('Select reviewer');
+    if (!commentModal.reviewer) {
+      toast.warning('Please select a reviewer');
+      return;
+    }
     try {
       await import('firebase/firestore').then(({ doc, updateDoc, serverTimestamp }) =>
         updateDoc(doc(db, 'fieldOfficerForms', commentModal.id), {
@@ -141,19 +153,23 @@ export default function History() {
         commentTimestamp: new Date().toISOString(),
       } : r));
       closeCommentModal();
+      toast.success("Comment saved successfully!");
     } catch (e) {
-      alert('Failed to save comment');
+      console.error("Failed to save comment:", e);
+      toast.error("Failed to save comment. Please try again.");
     }
   };
 
   // Delete report
   const deleteReport = async (id) => {
-    if (!window.confirm('Delete this report?')) return;
+    if (!window.confirm('Are you sure you want to delete this report?')) return;
     try {
       await import('firebase/firestore').then(({ doc, deleteDoc }) => deleteDoc(doc(db, 'fieldOfficerForms', id)));
       setHistory(h => h.filter(r => r.id !== id));
+      toast.success("Report deleted successfully!");
     } catch (e) {
-      alert('Failed to delete');
+      console.error("Failed to delete report:", e);
+      toast.error("Failed to delete report. Please try again.");
     }
   };
 

@@ -114,7 +114,7 @@ export default function Home() {
 
           {role !== 'field_officer' && (
             <Link
-              to="/MoM-generator"
+              to="/mom-generator"
               className="btn-outline"
               style={{ fontSize: "1.1em", padding: "16px 0" }}
             >

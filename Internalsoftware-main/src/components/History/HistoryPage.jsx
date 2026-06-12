@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../../Navbar';
 import { db } from '../../firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { jsPDF } from 'jspdf';
+import { toast } from 'react-toastify';
 import './History.css';
 import '../../DailyForm.css';
 
@@ -31,6 +33,7 @@ export default function HistoryPage() {
         setDemoSalesData(demoSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (error) {
         console.error("Error fetching history data:", error);
+        toast.error("Could not load history. Please check your connection and try again.");
       }
       setLoading(false);
     };
@@ -321,7 +324,23 @@ function ReportCard({ report }) {
             </svg>
           </button>
         </div>
-        <button className="w-auto flex items-center gap-2.5 px-6 py-3 bg-[#E8EAF6] text-[#3F51B5] rounded-xl text-[13px] font-black hover:bg-[#D1D5DB] transition-all duration-200 shadow-sm active:scale-95 group/btn">
+        <button onClick={() => {
+          try {
+            const doc = new jsPDF();
+            doc.setFont('helvetica');
+            doc.setFontSize(16);
+            doc.text(`${report.reportId} - Report`, 14, 20);
+            doc.setFontSize(12);
+            doc.text(`Officer/Village: ${report.officerName || '-'}`, 14, 30);
+            doc.text(`Date: ${report.date || '-'}`, 14, 40);
+            doc.text(`Status: ${report.status || '-'}`, 14, 50);
+            doc.save(`${report.reportId}_Report.pdf`);
+            toast.success("PDF downloaded successfully!");
+          } catch (e) {
+            console.error("PDF generation failed:", e);
+            toast.error("Failed to generate PDF. Please try again.");
+          }
+        }} className="w-auto flex items-center gap-2.5 px-6 py-3 bg-[#E8EAF6] text-[#3F51B5] rounded-xl text-[13px] font-black hover:bg-[#D1D5DB] transition-all duration-200 shadow-sm active:scale-95 group/btn">
           <svg className="w-4.5 h-4.5 transition-transform group-hover/btn:-translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>

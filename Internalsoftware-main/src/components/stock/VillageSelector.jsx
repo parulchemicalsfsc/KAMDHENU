@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { db } from "../../firebase";
 import { addDoc, collection } from "firebase/firestore";
+import { toast } from "react-toastify";
 
 /**
  * VillageSelector Component
@@ -97,9 +98,10 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
         onVillageChange(docRef.id);
         setNewlyAddedVillageName(newVillageName);
         setAddNewInput("");
+        toast.success(`Village "${newVillageName}" added successfully! ✓`);
       } catch (err) {
         console.error("Error creating village:", err);
-        alert("Failed to add village: " + (err.message || err));
+        toast.error("Could not add village. Please try again.");
       }
     }
   };

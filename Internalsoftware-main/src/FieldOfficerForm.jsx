@@ -9,6 +9,7 @@ import { collection, addDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { useNavigate } from 'react-router-dom';
 import notoSansGujarati from './fonts/NotoSansGujarati-Regular.js';
+import { toast } from 'react-toastify';
 
 const REMARK_QUESTIONS = [
   { id: 'supportive_mantry', label: 'SUPPORTIVE MANTRY', options: ['YES', 'NO'] },
@@ -201,65 +202,71 @@ export default function FieldOfficerForm() {
 
   // --- Export & Submit ---
   const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.addFileToVFS("NotoSansGujarati-Regular.ttf", notoSansGujarati);
-    doc.addFont("NotoSansGujarati-Regular.ttf", "NotoSansGujarati", "normal");
-    doc.setFont("NotoSansGujarati");
+    try {
+      const doc = new jsPDF();
+      doc.addFileToVFS("NotoSansGujarati-Regular.ttf", notoSansGujarati);
+      doc.addFont("NotoSansGujarati-Regular.ttf", "NotoSansGujarati", "normal");
+      doc.setFont("NotoSansGujarati");
 
-    let y = 10;
-    const lineGap = 8;
-    const labelFontSize = 11;
-    const valueFontSize = 12;
-    const maxWidth = 180;
+      let y = 10;
+      const lineGap = 8;
+      const labelFontSize = 11;
+      const valueFontSize = 12;
+      const maxWidth = 180;
 
-    const addField = (label, value) => {
-      doc.setFontSize(labelFontSize);
-      doc.text(`${label}`, 14, y);
-      y += 5;
-      doc.setFontSize(valueFontSize);
-      doc.text(value || '-', 14, y, { maxWidth });
-      y += lineGap;
-    };
+      const addField = (label, value) => {
+        doc.setFontSize(labelFontSize);
+        doc.text(`${label}`, 14, y);
+        y += 5;
+        doc.setFontSize(valueFontSize);
+        doc.text(value || '-', 14, y, { maxWidth });
+        y += lineGap;
+      };
 
-    doc.setFontSize(16);
-    doc.text("Daily Form Report", 14, y);
-    y += lineGap + 2;
+      doc.setFontSize(16);
+      doc.text("Daily Form Report", 14, y);
+      y += lineGap + 2;
 
-    addField("Officer Name", form.officerName);
-    addField("Date", form.date);
-    addField("Working Type", form.workingType);
-    addField("Punch In", form.punchIn);
-    addField("Punch Out", form.punchOut);
-    addField("Break Start", form.breakStart);
-    addField("Break End", form.breakEnd);
-    addField("KMs Travelled", form.kms);
-    
-    const totalHours = calculateHours();
-    addField("Total Working Hours", `${totalHours} hrs`);
+      addField("Officer Name", form.officerName);
+      addField("Date", form.date);
+      addField("Working Type", form.workingType);
+      addField("Punch In", form.punchIn);
+      addField("Punch Out", form.punchOut);
+      addField("Break Start", form.breakStart);
+      addField("Break End", form.breakEnd);
+      addField("KMs Travelled", form.kms);
+      
+      const totalHours = calculateHours();
+      addField("Total Working Hours", `${totalHours} hrs`);
 
-    if (customers.length > 0) {
-      y += 5;
-      doc.setFontSize(14);
-      doc.text("Customer & Order Details", 14, y);
-      y += lineGap;
+      if (customers.length > 0) {
+        y += 5;
+        doc.setFontSize(14);
+        doc.text("Customer & Order Details", 14, y);
+        y += lineGap;
 
-      const body = [];
-      customers.forEach(c => {
-        c.orders.forEach(o => {
-          body.push([c.name, c.phone, c.type, o.packaging, o.quantity]);
+        const body = [];
+        customers.forEach(c => {
+          c.orders.forEach(o => {
+            body.push([c.name, c.phone, c.type, o.packaging, o.quantity]);
+          });
         });
-      });
 
-      doc.autoTable({
-        startY: y,
-        head: [['Customer', 'Phone', 'Type', 'Package', 'Qty']],
-        body: body,
-        theme: "grid",
-        styles: { font: "NotoSansGujarati" }
-      });
+        doc.autoTable({
+          startY: y,
+          head: [['Customer', 'Phone', 'Type', 'Package', 'Qty']],
+          body: body,
+          theme: "grid",
+          styles: { font: "NotoSansGujarati" }
+        });
+      }
+
+      doc.save(`DailyFormReport_${form.officerName || 'Report'}_${form.date || ''}.pdf`);
+      toast.success("PDF downloaded successfully!");
+    } catch (e) {
+      console.error("Failed to generate PDF:", e);
+      toast.error("Failed to generate PDF. Please try again.");
     }
-
-    doc.save(`DailyFormReport_${form.officerName || 'Report'}_${form.date || ''}.pdf`);
   };
 
   const handleSubmit = async (e) => {
@@ -274,10 +281,11 @@ export default function FieldOfficerForm() {
         totalAmount: getTotalAmount(),
         createdAt: new Date().toISOString(),
       });
-      alert("Form submitted successfully!");
+      toast.success("Form submitted successfully! ✓");
       navigate('/history');
     } catch (err) {
-      alert("Error submitting form: " + err.message);
+      console.error("Error submitting form:", err);
+      toast.error("Something went wrong. Please try again.");
     }
     setSubmitting(false);
   };
