@@ -1,20 +1,19 @@
 import { Routes, Route } from 'react-router-dom';
-import Home from './Home';
-import FieldOfficerForm from './FieldOfficerForm';
-import DemoSalesList from './DemoSalesList';
-import DemoSalesHistory from './DemoSalesHistory';
-import DeleteRecords from './DeleteRecords';
-import HistoryPage from './components/History/HistoryPage';
-import RoutePlanner from './RoutePlanner';
-import Login from "./login.jsx";
-import MoMForm from './MoMForm.jsx';
-import ViewRoute from './ViewRoute.jsx';
-import RequireAuth from './RequireAuth';
-import MemberPage from './MemberPage';
+import Home from './pages/Home';
+import FieldOfficerForm from './pages/FieldOfficerForm';
+import DemoSalesList from './pages/DemoSalesList';
+import DeleteRecords from './pages/DeleteRecords';
+import HistoryPage from './pages/HistoryPage';
+import RoutePlanner from './pages/RoutePlanner';
+import Login from "./pages/Login.jsx";
+import MoMForm from './pages/MoMForm.jsx';
+import ViewRoute from './pages/ViewRoute.jsx';
+import RequireAuth from './components/RequireAuth';
+import MemberPage from './pages/MemberPage';
 import RequireRole from './components/RequireRole';
 import AdminPanel from './pages/AdminPanel';
-import ErrorBoundary from './components/ErrorBoundary';
-import './form.css';
+import './style/form.css';
+
 
 // ✅ import ToastContainer once at the top level
 import { ToastContainer } from "react-toastify";
@@ -24,96 +23,69 @@ export default function App() {
   return (
     <>
       <Routes>
-        <Route path="/login" element={<ErrorBoundary><Login /></ErrorBoundary>} />
-
+        <Route path="/login" element={<Login />} />
+        
         {/* Open routes accessible to all authenticated users */}
         <Route path="/member-page" element={
-          <ErrorBoundary>
-            <RequireAuth>
-              <MemberPage />
-            </RequireAuth>
-          </ErrorBoundary>
+          <RequireAuth>
+            <MemberPage />
+          </RequireAuth>
         } />
-
+        
         <Route path="/" element={
-          <ErrorBoundary>
-            <RequireAuth>
-              <Home />
-            </RequireAuth>
-          </ErrorBoundary>
+          <RequireAuth>
+            <Home />
+          </RequireAuth>
         } />
 
         <Route path="/route-planner" element={
-          <ErrorBoundary>
-            <RequireAuth>
-              <RoutePlanner />
-            </RequireAuth>
-          </ErrorBoundary>
+          <RequireAuth>
+            <RoutePlanner />
+          </RequireAuth>
         } />
-
+        
         <Route path="/view-route" element={
-          <ErrorBoundary>
-            <RequireAuth>
-              <ViewRoute />
-            </RequireAuth>
-          </ErrorBoundary>
+          <RequireAuth>
+            <ViewRoute />
+          </RequireAuth>
         } />
 
         <Route path="/demo-sales-list" element={
-          <ErrorBoundary>
-            <RequireRole allowedRoles={['admin', 'manager', 'user', 'field_officer']}>
-              <DemoSalesList />
-            </RequireRole>
-          </ErrorBoundary>
+          <RequireRole allowedRoles={['admin', 'manager', 'user', 'field_officer']}>
+            <DemoSalesList />
+          </RequireRole>
         } />
 
-        <Route path="/demo-history" element={
-          <ErrorBoundary>
-            <RequireAuth>
-              <DemoSalesHistory />
-            </RequireAuth>
-          </ErrorBoundary>
-        } />
 
         <Route path="/mom-generator" element={
-          <ErrorBoundary>
-            <RequireAuth>
-              <MoMForm />
-            </RequireAuth>
-          </ErrorBoundary>
+          <RequireAuth>
+            <MoMForm />
+          </RequireAuth>
         } />
 
         {/* Role-guarded routes */}
         <Route path="/form" element={
-          <ErrorBoundary>
-            <RequireRole allowedRoles={['admin', 'manager', 'field_officer']}>
-              <FieldOfficerForm />
-            </RequireRole>
-          </ErrorBoundary>
+          <RequireRole allowedRoles={['admin', 'manager', 'field_officer']}>
+            <FieldOfficerForm />
+          </RequireRole>
         } />
-
+        
         <Route path="/history" element={
-          <ErrorBoundary>
-            <RequireRole checkHistoryAccess={true}>
-              <HistoryPage />
-            </RequireRole>
-          </ErrorBoundary>
+          <RequireRole checkHistoryAccess={true}>
+            <HistoryPage />
+          </RequireRole>
         } />
 
         <Route path="/delete" element={
-          <ErrorBoundary>
-            <RequireRole allowedRoles={['admin']}>
-              <DeleteRecords />
-            </RequireRole>
-          </ErrorBoundary>
+          <RequireRole allowedRoles={['admin']}>
+            <DeleteRecords />
+          </RequireRole>
         } />
 
         <Route path="/admin-panel" element={
-          <ErrorBoundary>
-            <RequireRole allowedRoles={['admin']}>
-              <AdminPanel />
-            </RequireRole>
-          </ErrorBoundary>
+          <RequireRole allowedRoles={['admin']}>
+            <AdminPanel />
+          </RequireRole>
         } />
 
         <Route path="*" element={<div>404 Not Found</div>} />

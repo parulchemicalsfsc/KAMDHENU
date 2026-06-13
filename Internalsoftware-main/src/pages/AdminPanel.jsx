@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Navbar from '../Navbar';
+import Navbar from '../components/Navbar';
 import { db } from '../firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { toggleHistoryAccess, updateUserRole } from '../services/userService';

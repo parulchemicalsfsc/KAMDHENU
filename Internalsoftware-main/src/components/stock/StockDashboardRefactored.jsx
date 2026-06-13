@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import Navbar from "../Navbar";
-import "../form.css";
+import "../../style/form.css";
 
 // Import custom hooks
 import { useStockData, useDairyStockData, useSalesData, useVillages } from "../../hooks/useStockData";
