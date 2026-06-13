@@ -1969,100 +1969,106 @@ const DemoSalesList = () => {
     }
   };
   const handleExportPDF = () => {
-    const doc = new jsPDF();
+    try {
+      const doc = new jsPDF();
 
-    if (
-      notoSansGujarati &&
-      notoSansGujarati.fontName &&
-      notoSansGujarati.fontData
-    ) {
-      doc.addFileToVFS(
-        "NotoSansGujarati-Regular.ttf",
-        notoSansGujarati.fontData,
-      );
-      doc.addFont("NotoSansGujarati-Regular.ttf", "NotoSansGujarati", "normal");
-    }
+      if (
+        notoSansGujarati &&
+        notoSansGujarati.fontName &&
+        notoSansGujarati.fontData
+      ) {
+        doc.addFileToVFS(
+          "NotoSansGujarati-Regular.ttf",
+          notoSansGujarati.fontData,
+        );
+        doc.addFont("NotoSansGujarati-Regular.ttf", "NotoSansGujarati", "normal");
+      }
 
-    let y = 10;
-    doc.setFontSize(16);
-    doc.text("Demo Sales Report", 14, y);
-    y += 10;
+      let y = 10;
+      doc.setFontSize(16);
+      doc.text("Demo Sales Report", 14, y);
+      y += 10;
 
-    doc.setFontSize(11);
-    const lines = [
-      `Date: ${demoInfo.date || "-"}`,
-      `Village: ${demoInfo.village || "-"}`,
-      `Taluka: ${demoInfo.taluka || "-"}`,
-      `Mantri: ${demoInfo.mantri || "-"}`,
-      `Total Milk: ${demoInfo.totalMilk || "-"}`,
-      `Active Sabhasad: ${demoInfo.activeSabhasad || "-"}`,
-      `Team Members: ${demoInfo.teamMembers || "-"}`,
-      `Entry By: ${demoInfo.entryBy || "-"}`,
-      `Demo Remarks: ${demoInfo.demoRemarks || "-"}`,
-    ];
-    lines.forEach((t) => {
-      doc.text(t, 14, y);
-      y += 7;
-    });
-    y += 3;
-
-    // Allow PDF export even if no customers
-    if (customers.length > 0) {
-      doc.setFontSize(13);
-      doc.text("Customers", 14, y);
-      y += 4;
-      doc.autoTable({
-        startY: y,
-        head: [["Name", "Code", "Mobile", "Packaging", "Qty", "Remarks"]],
-        body: customers.map((c) => [
-          c.name,
-          c.code,
-          c.mobile,
-          c.orderPackaging,
-          c.orderQty,
-          c.remarks,
-        ]),
-        theme: "grid",
-        styles: { fontSize: 10 },
-        columnStyles: { 5: { font: "NotoSansGujarati" } },
-        margin: { left: 14, right: 14 },
+      doc.setFontSize(11);
+      const lines = [
+        `Date: ${demoInfo.date || "-"}`,
+        `Village: ${demoInfo.village || "-"}`,
+        `Taluka: ${demoInfo.taluka || "-"}`,
+        `Mantri: ${demoInfo.mantri || "-"}`,
+        `Total Milk: ${demoInfo.totalMilk || "-"}`,
+        `Active Sabhasad: ${demoInfo.activeSabhasad || "-"}`,
+        `Team Members: ${demoInfo.teamMembers || "-"}`,
+        `Entry By: ${demoInfo.entryBy || "-"}`,
+        `Demo Remarks: ${demoInfo.demoRemarks || "-"}`,
+      ];
+      lines.forEach((t) => {
+        doc.text(t, 14, y);
+        y += 7;
       });
-      y = doc.lastAutoTable.finalY + 6;
-    }
+      y += 3;
 
-    // Include Stock Taken (for Demo) if present
-    if (stockTaken.length > 0) {
-      doc.setFontSize(13);
-      doc.text("Stock Taken (for Demo)", 14, y);
-      y += 4;
-      doc.autoTable({
-        startY: y,
-        head: [["Packaging", "Quantity"]],
-        body: stockTaken.map((s) => [s.packaging, s.quantity]),
-        theme: "grid",
-        styles: { fontSize: 10 },
-        margin: { left: 14, right: 14 },
-      });
-      y = doc.lastAutoTable.finalY + 6;
-    }
+      // Allow PDF export even if no customers
+      if (customers.length > 0) {
+        doc.setFontSize(13);
+        doc.text("Customers", 14, y);
+        y += 4;
+        doc.autoTable({
+          startY: y,
+          head: [["Name", "Code", "Mobile", "Packaging", "Qty", "Remarks"]],
+          body: customers.map((c) => [
+            c.name,
+            c.code,
+            c.mobile,
+            c.orderPackaging,
+            c.orderQty,
+            c.remarks,
+          ]),
+          theme: "grid",
+          styles: { fontSize: 10 },
+          columnStyles: { 5: { font: "NotoSansGujarati" } },
+          margin: { left: 14, right: 14 },
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      }
 
-    // Include Stock at Dairy
-    if (stockAtDairy.length > 0) {
-      doc.setFontSize(13);
-      doc.text("Stock at Dairy", 14, y);
-      y += 4;
-      doc.autoTable({
-        startY: y,
-        head: [["Packaging", "Quantity"]],
-        body: stockAtDairy.map((s) => [s.packaging, s.quantity]),
-        theme: "grid",
-        styles: { fontSize: 10 },
-        margin: { left: 14, right: 14 },
-      });
-      y = doc.lastAutoTable.finalY + 6;
-    }
+      // Include Stock Taken (for Demo) if present
+      if (stockTaken.length > 0) {
+        doc.setFontSize(13);
+        doc.text("Stock Taken (for Demo)", 14, y);
+        y += 4;
+        doc.autoTable({
+          startY: y,
+          head: [["Packaging", "Quantity"]],
+          body: stockTaken.map((s) => [s.packaging, s.quantity]),
+          theme: "grid",
+          styles: { fontSize: 10 },
+          margin: { left: 14, right: 14 },
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      }
 
-    doc.save(`DemoSales_${demoInfo.date || "export"}.pdf`);
+      // Include Stock at Dairy
+      if (stockAtDairy.length > 0) {
+        doc.setFontSize(13);
+        doc.text("Stock at Dairy", 14, y);
+        y += 4;
+        doc.autoTable({
+          startY: y,
+          head: [["Packaging", "Quantity"]],
+          body: stockAtDairy.map((s) => [s.packaging, s.quantity]),
+          theme: "grid",
+          styles: { fontSize: 10 },
+          margin: { left: 14, right: 14 },
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      }
+
+      doc.save(`DemoSales_${demoInfo.date || "export"}.pdf`);
+      toast.success("PDF downloaded successfully! 📄");
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      toast.error("❌ Failed to generate PDF: " + (err.message || err));
+    }
   };
 
   // Random winners

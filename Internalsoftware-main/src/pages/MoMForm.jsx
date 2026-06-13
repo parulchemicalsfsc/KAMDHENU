@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { toast } from 'react-toastify';
 import jsPDF from "jspdf";
 import { db } from "../firebase";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
@@ -56,7 +57,7 @@ const handleParticipantChange = (selectedOptions) => {
       timestamp: Timestamp.now()
     };
     await addDoc(collection(db, "demo_moms"), payload);
-    alert("MoM Saved to Firestore");
+    toast.success('Minutes of Meeting saved! ✓');
   };
 
   const generatePDF = () => {

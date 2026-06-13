@@ -1,52 +1,210 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { db } from '../firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import {
+  collection, getDocs, query, orderBy, where,
+  limit, startAfter
+} from 'firebase/firestore';
 import '../style/History.css';
 import '../style/DailyForm.css';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FIX 3 — In-Memory Cache (module-level, survives re-renders)
+// Key   → "tab|officer=X|from=Y|to=Z|page=N"
+// Value → { records: [...], hasMore: true/false }
+// ─────────────────────────────────────────────────────────────────────────────
+const historyCache = new Map();
+const PAGE_SIZE = 10;
+
+function buildCacheKey(tab, officer, dateFrom, dateTo, pageIndex) {
+  return `${tab}|officer=${officer}|from=${dateFrom}|to=${dateTo}|page=${pageIndex}`;
+}
 
 export default function HistoryPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('field');
-  const [fieldOfficerData, setFieldOfficerData] = useState([]);
-  const [demoSalesData, setDemoSalesData] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  // Filter States
+  // ── Data ───────────────────────────────────────────────────────────────────
+  const [fieldData, setFieldData] = useState([]);
+  const [demoData, setDemoData]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+
+  // ── Filter inputs (not yet sent to Firebase) ──────────────────────────────
   const [officerFilter, setOfficerFilter] = useState('All');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom]           = useState('');
+  const [dateTo, setDateTo]               = useState('');
 
+  // ── Applied filters (sent to Firebase on Apply click) ─────────────────────
+  const [appliedFilters, setAppliedFilters] = useState({
+    officer: 'All',
+    dateFrom: '',
+    dateTo: '',
+  });
+
+  // ── FIX 1 — Pagination state ──────────────────────────────────────────────
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageCursors, setPageCursors] = useState([null]);
+  const [hasMore, setHasMore]         = useState(false);
+
+  // ── Officer dropdown list ─────────────────────────────────────────────────
+  const [officerList, setOfficerList] = useState([]);
+
+  // Fetch unique officer names once for the filter dropdown
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    async function fetchOfficerList() {
       try {
-        const fieldQuery = query(collection(db, 'fieldOfficerForms'), orderBy('createdAt', 'desc'));
-        const fieldSnap = await getDocs(fieldQuery);
-        setFieldOfficerData(fieldSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-        const demoQuery = query(collection(db, 'demoForms'), orderBy('createdAt', 'desc'));
-        const demoSnap = await getDocs(demoQuery);
-        setDemoSalesData(demoSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      } catch (error) {
-        console.error("Error fetching history data:", error);
-      }
-      setLoading(false);
-    };
-
-    fetchData();
+        const snap = await getDocs(
+          query(collection(db, 'fieldOfficerForms'), orderBy('createdAt', 'desc'), limit(200))
+        );
+        const names = new Set();
+        snap.docs.forEach(d => {
+          const n = d.data().officerName;
+          if (n) names.add(n);
+        });
+        setOfficerList(Array.from(names).sort());
+      } catch (_) { /* non-critical */ }
+    }
+    fetchOfficerList();
   }, []);
 
-  const filteredFieldData = React.useMemo(() => {
-    return fieldOfficerData.filter(d => {
-      const matchesOfficer = officerFilter === 'All' || d.officerName === officerFilter;
-      const matchesDateFrom = !dateFrom || d.date >= dateFrom;
-      const matchesDateTo = !dateTo || d.date <= dateTo;
-      return matchesOfficer && matchesDateFrom && matchesDateTo;
+  // ── FIX 1 + 2 + 3 — Core fetch function ──────────────────────────────────
+  const fetchPage = useCallback(async (tab, pageIndex, cursors, filters) => {
+    const { officer, dateFrom, dateTo } = filters;
+    const collectionName = tab === 'field' ? 'fieldOfficerForms' : 'demoForms';
+
+    // ── FIX 3: Check cache first ─────────────────────────────────────────
+    const cacheKey = buildCacheKey(tab, officer, dateFrom, dateTo, pageIndex);
+    if (historyCache.has(cacheKey)) {
+      const cached = historyCache.get(cacheKey);
+      if (tab === 'field') setFieldData(cached.records);
+      else setDemoData(cached.records);
+      setHasMore(cached.hasMore);
+      setLoading(false);
+      return;
+    }
+
+    // ── FIX 2: Build Firebase query with server-side filters ─────────────
+    // IMPORTANT: We avoid composite indexes by NEVER combining where() on
+    // one field with orderBy() on a different field.
+    //
+    // Strategy:
+    //   - Date range only    → where(date) + orderBy(date)     [same field = OK]
+    //   - Officer only       → where(officerName)              [no orderBy needed]
+    //   - Officer + Date     → where(date) + orderBy(date)     [officer filtered client-side]
+    //   - No filters         → orderBy(createdAt)              [single field = OK]
+    // ──────────────────────────────────────────────────────────────────────
+    const constraints = [];
+    let officerClientSide = ''; // if set, we filter by officer AFTER fetching
+
+    const hasDateFilter    = !!(dateFrom || dateTo);
+    const hasOfficerFilter = tab === 'field' && officer && officer !== 'All';
+
+    if (hasDateFilter && hasOfficerFilter) {
+      // Both filters → date goes server-side, officer goes client-side
+      // (combining where on 2 different fields needs a composite index)
+      if (dateFrom) constraints.push(where('date', '>=', dateFrom));
+      if (dateTo)   constraints.push(where('date', '<=', dateTo));
+      constraints.push(orderBy('date', 'desc'));
+      officerClientSide = officer; // will filter after fetch
+    } else if (hasDateFilter) {
+      // Date only → server-side (where + orderBy on same 'date' field)
+      if (dateFrom) constraints.push(where('date', '>=', dateFrom));
+      if (dateTo)   constraints.push(where('date', '<=', dateTo));
+      constraints.push(orderBy('date', 'desc'));
+    } else if (hasOfficerFilter) {
+      // Officer only → server-side where, no orderBy (avoids composite index)
+      constraints.push(where('officerName', '==', officer));
+    } else {
+      // No filters → just order by createdAt
+      constraints.push(orderBy('createdAt', 'desc'));
+    }
+
+    // ── FIX 1: Cursor-based pagination ───────────────────────────────────
+    const cursor = cursors[pageIndex];
+    if (cursor) {
+      constraints.push(startAfter(cursor));
+    }
+
+    // Fetch PAGE_SIZE + 1 to check if next page exists
+    constraints.push(limit(PAGE_SIZE + 1));
+
+    const q = query(collection(db, collectionName), ...constraints);
+    const snap = await getDocs(q);
+
+    const hasMoreData = snap.docs.length > PAGE_SIZE;
+    const pageDocs = hasMoreData ? snap.docs.slice(0, PAGE_SIZE) : snap.docs;
+    let fetched = pageDocs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Client-side officer filter (used when both officer + date are set)
+    if (officerClientSide) {
+      fetched = fetched.filter(r => r.officerName === officerClientSide);
+    }
+
+    // Save cursor for next page
+    if (pageDocs.length > 0) {
+      setPageCursors(prev => {
+        const updated = [...prev];
+        updated[pageIndex + 1] = pageDocs[pageDocs.length - 1];
+        return updated;
+      });
+    }
+
+    // ── FIX 3: Save to cache ─────────────────────────────────────────────
+    historyCache.set(cacheKey, { records: fetched, hasMore: hasMoreData });
+
+    if (tab === 'field') setFieldData(fetched);
+    else setDemoData(fetched);
+    setHasMore(hasMoreData);
+    setLoading(false);
+  }, []);
+
+  // Trigger fetch whenever tab, page, or applied filters change
+  useEffect(() => {
+    setLoading(true);
+    fetchPage(activeTab, currentPage, pageCursors, appliedFilters).catch(err => {
+      console.error("Error fetching history data:", err);
+      toast.error('Could not load history. Please check your connection.');
+      setLoading(false);
     });
-  }, [fieldOfficerData, officerFilter, dateFrom, dateTo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, currentPage, appliedFilters]);
+
+  // ── Tab switch resets pagination ───────────────────────────────────────────
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    setCurrentPage(0);
+    setPageCursors([null]);
+  };
+
+  // ── Filter actions ────────────────────────────────────────────────────────
+  const applyFilters = () => {
+    historyCache.clear();
+    setCurrentPage(0);
+    setPageCursors([null]);
+    setAppliedFilters({ officer: officerFilter, dateFrom, dateTo });
+  };
+
+  const clearFilters = () => {
+    setOfficerFilter('All');
+    setDateFrom('');
+    setDateTo('');
+    historyCache.clear();
+    setCurrentPage(0);
+    setPageCursors([null]);
+    setAppliedFilters({ officer: 'All', dateFrom: '', dateTo: '' });
+  };
+
+  // ── Pagination helpers ────────────────────────────────────────────────────
+  const goNext = () => setCurrentPage(p => p + 1);
+  const goPrev = () => setCurrentPage(p => Math.max(0, p - 1));
+
+  // Active filter indicator
+  const hasActiveFilters =
+    appliedFilters.officer !== 'All' || appliedFilters.dateFrom || appliedFilters.dateTo;
+
+  const currentData = activeTab === 'field' ? fieldData : demoData;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans pb-20">
@@ -61,10 +219,11 @@ export default function HistoryPage() {
       </div>
       
       <main className="max-w-4xl mx-auto px-4 py-10">
+        {/* ── Tab Buttons ── */}
         <header className="mb-10">
           <div className="flex flex-col sm:flex-row gap-4">
             <button
-              onClick={() => setActiveTab('field')}
+              onClick={() => switchTab('field')}
               className={`w-full sm:w-auto px-8 py-3.5 rounded-2xl font-bold text-[15px] transition-all duration-300 transform active:scale-95 ${
                 activeTab === 'field'
                   ? 'bg-[#3B82F6] text-white shadow-[0_10px_25px_-5px_rgba(59,130,246,0.4)] ring-4 ring-blue-500/10'
@@ -74,7 +233,7 @@ export default function HistoryPage() {
               Daily Form History
             </button>
             <button
-              onClick={() => setActiveTab('demo')}
+              onClick={() => switchTab('demo')}
               className={`w-full sm:w-auto px-8 py-3.5 rounded-2xl font-bold text-[15px] transition-all duration-300 transform active:scale-95 ${
                 activeTab === 'demo'
                   ? 'bg-[#3B82F6] text-white shadow-[0_10px_25px_-5px_rgba(59,130,246,0.4)] ring-4 ring-blue-500/10'
@@ -86,42 +245,152 @@ export default function HistoryPage() {
           </div>
         </header>
 
+        {/* ── Filters Card (shared for both tabs) ── */}
+        <div className="bg-white rounded-[20px] sm:rounded-[24px] p-5 sm:p-8 shadow-[0_2px_12px_-3px_rgba(0,0,0,0.04)] border border-slate-100/80 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Officer dropdown (only for field tab) */}
+            {activeTab === 'field' && (
+              <div>
+                <label className="block text-[11px] font-bold text-[#3B82F6] uppercase tracking-[0.1em] mb-2.5 ml-1">Officer</label>
+                <select 
+                  value={officerFilter}
+                  onChange={(e) => setOfficerFilter(e.target.value)}
+                  className="w-full bg-[#F1F5F9] border-none rounded-2xl px-5 py-3.5 text-[#334155] font-semibold outline-none focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="All">All</option>
+                  {officerList.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div>
+              <label className="block text-[11px] font-bold text-[#3B82F6] uppercase tracking-[0.1em] mb-2.5 ml-1">Date From</label>
+              <input 
+                type="date" 
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full bg-[#F1F5F9] border-none rounded-2xl px-5 py-3.5 text-[#334155] font-semibold outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer" 
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-[#3B82F6] uppercase tracking-[0.1em] mb-2.5 ml-1">Date To</label>
+              <input 
+                type="date" 
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full bg-[#F1F5F9] border-none rounded-2xl px-5 py-3.5 text-[#334155] font-semibold outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer" 
+              />
+            </div>
+          </div>
+
+          {/* Apply / Clear buttons */}
+          <div style={{ display: 'flex', gap: 12, marginTop: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={applyFilters}
+              className="px-6 py-3 bg-[#3B82F6] text-white rounded-2xl font-bold text-[14px] shadow-[0_4px_12px_-2px_rgba(59,130,246,0.4)] hover:bg-[#2563EB] transition-all active:scale-95"
+            >
+              🔍 Apply Filters
+            </button>
+            <button
+              onClick={clearFilters}
+              className="px-6 py-3 bg-[#F1F5F9] text-[#64748B] rounded-2xl font-bold text-[14px] hover:bg-[#E2E8F0] transition-all active:scale-95"
+            >
+              ✕ Clear
+            </button>
+
+            {/* Active filter badge */}
+            {hasActiveFilters && (
+              <span className="px-4 py-2 bg-[#DBEAFE] text-[#2563EB] rounded-full text-[12px] font-bold">
+                🔍 Filtered
+              </span>
+            )}
+
+            {/* Cache indicator */}
+            <span className="ml-auto text-[11px] text-[#94A3B8] font-semibold">
+              💾 Cache: {historyCache.size} page(s) in memory
+            </span>
+          </div>
+        </div>
+
+        {/* ── Loading State ── */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 animate-pulse">
             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
             <p className="text-slate-400 font-bold">Loading history...</p>
           </div>
         ) : (
-          <div className="relative min-h-[600px]">
-            {/* Field Officer History Section */}
-            <div 
-              className={`transition-all duration-500 ease-out transform ${
-                activeTab === 'field' 
-                  ? 'opacity-100 translate-x-0 relative' 
-                  : 'opacity-0 -translate-x-12 absolute inset-0 pointer-events-none'
-              }`}
-            >
-              <FieldOfficerSection 
-                data={filteredFieldData} 
-                allData={fieldOfficerData}
-                officerFilter={officerFilter}
-                setOfficerFilter={setOfficerFilter}
-                dateFrom={dateFrom}
-                setDateFrom={setDateFrom}
-                dateTo={dateTo}
-                setDateTo={setDateTo}
-              />
+          <div className="relative min-h-[400px]">
+            {/* ── Section Header ── */}
+            <div className="flex justify-between items-center px-4 mb-6">
+              <h2 className="text-[22px] font-extrabold text-[#1E293B]">
+                {activeTab === 'field' ? 'Daily Form Reports' : 'Demo Sales Reports'}
+              </h2>
+              <span className="text-[13px] text-slate-400 font-bold">
+                {currentData.length} record(s) on this page
+              </span>
             </div>
 
-            {/* Demo Sales History Section */}
-            <div 
-              className={`transition-all duration-500 ease-out transform ${
-                activeTab === 'demo' 
-                  ? 'opacity-100 translate-x-0 relative' 
-                  : 'opacity-0 translate-x-12 absolute inset-0 pointer-events-none'
-              }`}
-            >
-              <DemoSalesSection data={demoSalesData} />
+            {/* ── Report Cards ── */}
+            <div className="space-y-5">
+              {currentData.length > 0 ? (
+                currentData.map(report => (
+                  <ReportCard key={report.id} report={{
+                    ...report,
+                    reportId: report.reportId || (activeTab === 'field'
+                      ? `#RF-${report.id.slice(-5).toUpperCase()}`
+                      : `#DS-${report.id.slice(-5).toUpperCase()}`),
+                    initials: activeTab === 'field'
+                      ? (report.officerName?.split(' ').map(n => n[0]).join('').toUpperCase() || '??')
+                      : (report.village?.slice(0, 2).toUpperCase() || report.demoName?.slice(0, 2).toUpperCase() || 'DS'),
+                    status: report.status || 'COMPLETED',
+                    ...(activeTab === 'demo' && {
+                      officerName: report.village || report.demoName || 'Demo Site',
+                      workingType: `Entry By: ${report.entryBy || 'System'}`
+                    })
+                  }} />
+                ))
+              ) : (
+                <div className="text-center py-20 bg-white rounded-[32px] border border-dashed border-slate-200">
+                  <p className="text-slate-400 font-bold">
+                    {hasActiveFilters ? 'No records found for the selected filters.' : 'No records found.'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* ── FIX 1: Pagination Controls ── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 16, marginTop: 32, paddingBottom: 12,
+            }}>
+              <button
+                onClick={goPrev}
+                disabled={currentPage === 0}
+                className={`px-6 py-3 rounded-2xl font-bold text-[14px] transition-all active:scale-95 ${
+                  currentPage === 0
+                    ? 'bg-[#F1F5F9] text-[#CBD5E1] cursor-not-allowed'
+                    : 'bg-white text-[#3B82F6] shadow-sm hover:bg-[#EFF6FF] cursor-pointer'
+                }`}
+              >
+                ← Prev
+              </button>
+
+              <span className="px-6 py-3 bg-[#3B82F6] text-white rounded-2xl font-black text-[14px] shadow-[0_4px_12px_-2px_rgba(59,130,246,0.3)]">
+                Page {currentPage + 1}
+              </span>
+
+              <button
+                onClick={goNext}
+                disabled={!hasMore}
+                className={`px-6 py-3 rounded-2xl font-bold text-[14px] transition-all active:scale-95 ${
+                  !hasMore
+                    ? 'bg-[#F1F5F9] text-[#CBD5E1] cursor-not-allowed'
+                    : 'bg-white text-[#3B82F6] shadow-sm hover:bg-[#EFF6FF] cursor-pointer'
+                }`}
+              >
+                Next →
+              </button>
             </div>
           </div>
         )}
@@ -130,155 +399,7 @@ export default function HistoryPage() {
   );
 }
 
-function FieldOfficerSection({ data, allData, officerFilter, setOfficerFilter, dateFrom, setDateFrom, dateTo, setDateTo }) {
-  return (
-    <div className="space-y-8 opacity-0 translate-y-4 animate-fadeInUp">
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeInUp {
-          animation: fadeInUp 0.6s ease-out forwards;
-        }
-      `}</style>
-      
-      {/* Filters Card */}
-      <div className="bg-white rounded-[20px] sm:rounded-[24px] p-5 sm:p-8 shadow-[0_2px_12px_-3px_rgba(0,0,0,0.04)] border border-slate-100/80">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <label className="block text-[11px] font-bold text-[#3B82F6] uppercase tracking-[0.1em] mb-2.5 ml-1">Officer</label>
-            <select 
-              value={officerFilter}
-              onChange={(e) => setOfficerFilter(e.target.value)}
-              className="w-full bg-[#F1F5F9] border-none rounded-2xl px-5 py-3.5 text-[#334155] font-semibold outline-none focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer"
-            >
-              <option value="All">All</option>
-              {[...new Set(allData.map(d => d.officerName))].filter(Boolean).sort().map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[11px] font-bold text-[#3B82F6] uppercase tracking-[0.1em] mb-2.5 ml-1">Date To</label>
-            <input 
-              type="date" 
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-full bg-[#F1F5F9] border-none rounded-2xl px-5 py-3.5 text-[#334155] font-semibold outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer" 
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] font-bold text-[#3B82F6] uppercase tracking-[0.1em] mb-2.5 ml-1">Date From</label>
-            <input 
-              type="date" 
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full bg-[#F1F5F9] border-none rounded-2xl px-5 py-3.5 text-[#334155] font-semibold outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer" 
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="flex justify-between items-center px-4">
-        <h2 className="text-[22px] font-extrabold text-[#1E293B]">Recent Reports</h2>
-        <button className="text-[#3B82F6] font-bold text-sm hover:text-blue-700 transition-colors">View All</button>
-      </div>
-
-      <div className="space-y-5">
-        {data.length > 0 ? (
-          data.map(report => (
-            <ReportCard key={report.id} report={{
-              ...report,
-              reportId: report.reportId || `#RF-${report.id.slice(-5).toUpperCase()}`,
-              initials: report.officerName?.split(' ').map(n => n[0]).join('').toUpperCase() || '??',
-              status: report.status || 'COMPLETED'
-            }} />
-          ))
-        ) : (
-          <div className="text-center py-20 bg-white rounded-[32px] border border-dashed border-slate-200">
-            <p className="text-slate-400 font-bold">No records found.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function DemoSalesSection({ data }) {
-  // Simple analytics calculation
-  const totalCustomers = data.reduce((sum, r) => sum + (r.customers?.length || 0), 0);
-  const totalQuantity = data.reduce((sum, r) => sum + (r.customers?.reduce((s, c) => s + (Number(c.orderQty) || 0), 0) || 0), 0);
-  
-  const packagingTotals = {};
-  data.forEach(r => {
-    (r.customers || []).forEach(c => {
-      if (c.orderPackaging) {
-        packagingTotals[c.orderPackaging] = (packagingTotals[c.orderPackaging] || 0) + (Number(c.orderQty) || 0);
-      }
-    });
-  });
-
-  return (
-    <div className="space-y-8 opacity-0 translate-y-4 animate-fadeInUp">
-      {/* Analytics Card */}
-      <div className="bg-white rounded-[24px] sm:rounded-[32px] p-5 sm:p-8 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-slate-100/80">
-        <h3 className="text-[20px] font-black text-[#1E293B] mb-6 tracking-tight">Analytics</h3>
-        <ul className="space-y-4 text-[15px] text-slate-600 font-bold">
-          <li className="flex items-center gap-2">
-            1. Total Customers: <span className="text-[#1E293B] font-black">{totalCustomers}</span>
-          </li>
-          <li className="flex items-center gap-2">
-            2. Total Quantity: <span className="text-[#1E293B] font-black">{totalQuantity}</span>
-          </li>
-          <li className="pt-2">
-            <div className="flex items-center gap-2 mb-4">
-              3. Packaging-wise Sales:
-            </div>
-            <ul className="ml-5 space-y-2.5 text-[14.5px]">
-              {Object.entries(packagingTotals).length > 0 ? (
-                Object.entries(packagingTotals).map(([pack, qty]) => (
-                  <li key={pack} className="flex items-center gap-2.5">
-                    <span className="text-slate-300">•</span>
-                    <span className="text-slate-500 uppercase tracking-tight font-bold">{pack}:</span>
-                    <span className="text-[#1E293B] font-black">{qty}</span>
-                  </li>
-                ))
-              ) : (
-                <li className="text-slate-400 italic font-medium tracking-tight">• No packaging data available</li>
-              )}
-            </ul>
-          </li>
-        </ul>
-      </div>
-
-      <div className="flex justify-between items-center px-4">
-        <h2 className="text-[22px] font-extrabold text-[#1E293B]">Recent Reports</h2>
-        <button className="text-[#3B82F6] font-bold text-sm hover:text-blue-700 transition-colors">View All</button>
-      </div>
-
-      <div className="space-y-5">
-        {data.length > 0 ? (
-          data.map(report => (
-            <ReportCard key={report.id} report={{
-              ...report,
-              reportId: report.reportId || `#DS-${report.id.slice(-5).toUpperCase()}`,
-              initials: report.village?.slice(0, 2).toUpperCase() || report.demoName?.slice(0, 2).toUpperCase() || 'DS',
-              status: 'COMPLETED',
-              officerName: report.village || report.demoName || 'Demo Site',
-              workingType: `Entry By: ${report.entryBy || 'System'}`
-            }} />
-          ))
-        ) : (
-          <div className="text-center py-20 bg-white rounded-[24px] border border-dashed border-slate-200">
-            <p className="text-slate-400 font-bold">No demo records found.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
+// ── ReportCard component (unchanged) ─────────────────────────────────────────
 function ReportCard({ report }) {
   const statusColors = {
     'COMPLETED': 'bg-[#E8F5E9] text-[#2E7D32]',

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'react-toastify';
 import { db } from '../firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import ExcelJS from 'exceljs';
@@ -67,12 +68,12 @@ const RoutePlanner = () => {
       routes,
       createdAt: new Date().toISOString(),
     });
-    setMessage("✅ Route Planner data saved successfully!");
+    toast.success('Route plan saved! ✓');
     setRoutes([]);
     setDate('');
   } catch (error) {
     console.error("Error saving data: ", error);
-    setMessage("❌ Failed to save data.");
+    toast.error('Failed to save route. Please try again.');
   }
 };
 
