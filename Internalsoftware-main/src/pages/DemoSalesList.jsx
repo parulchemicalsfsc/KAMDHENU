@@ -1292,9 +1292,12 @@ const DemoSalesList = () => {
   // Location
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser.");
+      toast.error("Geolocation is not supported by your browser.");
       return;
     }
+
+    const toastId = toast.info("⏳ Fetching location...", { autoClose: false, isLoading: true });
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -1303,9 +1306,12 @@ const DemoSalesList = () => {
           latitude: latitude.toFixed(6),
           longitude: longitude.toFixed(6),
         }));
+        toast.dismiss(toastId);
+        toast.success("Location fetched successfully! 📍");
       },
       (error) => {
-        alert("Error getting location: " + error.message);
+        toast.dismiss(toastId);
+        toast.error("❌ Error getting location: " + error.message);
       },
     );
   };
