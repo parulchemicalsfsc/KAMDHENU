@@ -522,8 +522,9 @@ export default function MemberPage() {
     }, 0);
 
   return (
-    <div style={{ padding: 20 }}>
+    <>
       <Navbar />
+      <div style={{ padding: 20 }}>
       <h1>Member Page</h1>
 
       {/* Village Selection with Search */}
@@ -1362,7 +1363,8 @@ export default function MemberPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
  
