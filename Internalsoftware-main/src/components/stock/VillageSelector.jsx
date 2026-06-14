@@ -151,20 +151,29 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
       borderRadius: "16px",
       boxShadow: "0 10px 30px rgba(0, 0, 0, 0.05)",
       border: "1px solid rgba(226, 232, 240, 0.8)",
-      position: "relative",
-      overflow: "hidden"
+      position: "relative"
     }}>
-      {/* Decorative gradient background element */}
+      {/* Decorative gradient background element wrapped to contain overflow */}
       <div style={{
         position: "absolute",
-        top: "-50%",
-        left: "-50%",
-        width: "200%",
-        height: "200%",
-        background: "radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.03) 0%, transparent 50%)",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        borderRadius: "16px",
+        overflow: "hidden",
         pointerEvents: "none",
         zIndex: 0
-      }} />
+      }}>
+        <div style={{
+          position: "absolute",
+          top: "-50%",
+          left: "-50%",
+          width: "200%",
+          height: "200%",
+          background: "radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.03) 0%, transparent 50%)"
+        }} />
+      </div>
 
       <div style={{ position: "relative", zIndex: 1 }}>
         {showLabel && (
