@@ -286,10 +286,7 @@ const RoutePlanner = () => {
 
     
         </form>
-        <footer className="footer-credit" style={{marginTop: 32, borderTop:'1px solid #e3eefd', paddingTop:12, textAlign:'center'}}>
-          <p>MADE WITH AI BY <strong>S&J</strong></p>
-          <small>Powered by Parul Chemicals • FS CALCIVAL</small>
-        </footer>
+
       </div>
     </>
   );

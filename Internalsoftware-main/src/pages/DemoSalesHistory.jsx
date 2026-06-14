@@ -485,10 +485,7 @@ export default function DemoSalesHistory() {
             </div>
           </div>
         )}
-        <footer className="footer-credit" style={{ marginTop: 32 }}>
-          <p>MADE WITH AI BY <strong>S&J</strong></p>
-          <small>Powered by Parul Chemicals • FS CALCIVAL</small>
-        </footer>
+
       </div>
     </>
   );

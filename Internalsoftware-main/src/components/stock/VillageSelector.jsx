@@ -143,283 +143,411 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
         break;
     }
   };
-
   return (
-    <div style={{ marginBottom: "20px", padding: "15px", backgroundColor: "#f5f5f5", borderRadius: "8px" }}>
-      {showLabel && (
-        <label style={{ fontWeight: "bold", display: "block", marginBottom: "10px" }}>
-          {label}
-        </label>
-      )}
+    <div style={{ 
+      marginBottom: "30px", 
+      padding: "24px", 
+      backgroundColor: "#ffffff", 
+      borderRadius: "16px",
+      boxShadow: "0 10px 30px rgba(0, 0, 0, 0.05)",
+      border: "1px solid rgba(226, 232, 240, 0.8)",
+      position: "relative",
+      overflow: "hidden"
+    }}>
+      {/* Decorative gradient background element */}
+      <div style={{
+        position: "absolute",
+        top: "-50%",
+        left: "-50%",
+        width: "200%",
+        height: "200%",
+        background: "radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.03) 0%, transparent 50%)",
+        pointerEvents: "none",
+        zIndex: 0
+      }} />
 
-      {/* Selected Village Display - Prominent */}
-      {selectedVillageId && (
-        <div style={{ 
-          marginBottom: "15px", 
-          padding: "14px 16px", 
-          backgroundColor: "#1976d2", 
-          borderRadius: "6px", 
-          fontSize: "16px", 
-          color: "#fff", 
-          fontWeight: "600",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          boxShadow: "0 2px 8px rgba(25, 118, 210, 0.3)"
-        }}>
-          <span>✅ Selected: {selectedVillageName}</span>
-          <button
-            type="button"
-            onClick={() => {
-              onVillageChange(null);
-              setSearchInput("");
-              setShowSearchResults(false);
-            }}
-            style={{
-              padding: "6px 12px",
-              background: "rgba(255,255,255,0.3)",
-              color: "#fff",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontWeight: "600",
-              fontSize: "12px",
-              transition: "background 0.2s",
-            }}
-            onMouseEnter={(e) => e.target.style.background = "rgba(255,255,255,0.5)"}
-            onMouseLeave={(e) => e.target.style.background = "rgba(255,255,255,0.3)"}
-          >
-            Change
-          </button>
-        </div>
-      )}
-      
-      {/* Search Village Section */}
-      <div style={{ marginBottom: "10px", position: "relative" }}>
-        <div style={{ fontSize: "clamp(11px, 2.5vw, 12px)", fontWeight: "600", color: "#666", marginBottom: "6px" }}>
-          🔍 Search Old Village
-        </div>
-        <div style={{ position: "relative" }}>
-          <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
-            <span style={{ position: "absolute", left: 12, color: "#2563eb", fontSize: "clamp(1em, 4vw, 1.2em)" }}>🔍</span>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Type village name..."
-              value={searchInput}
-              onChange={(e) => {
-                setSearchInput(e.target.value);
-                setShowSearchResults(true);
+      <div style={{ position: "relative", zIndex: 1 }}>
+        {showLabel && (
+          <h2 style={{ 
+            fontWeight: "700", 
+            fontSize: "1.25rem",
+            color: "#1e293b",
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}>
+            <span style={{ fontSize: "1.4rem" }}>📍</span> {label}
+          </h2>
+        )}
+
+        {/* Selected Village Display - Prominent */}
+        {selectedVillageId && (
+          <div style={{ 
+            marginBottom: "24px", 
+            padding: "16px 20px", 
+            background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)", 
+            borderRadius: "12px", 
+            fontSize: "16px", 
+            color: "#fff", 
+            fontWeight: "600",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            boxShadow: "0 4px 15px rgba(37, 99, 235, 0.3)",
+            animation: "fadeIn 0.3s ease-out"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ 
+                background: "rgba(255,255,255,0.2)", 
+                padding: "6px", 
+                borderRadius: "50%", 
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center" 
+              }}>
+                ✅
+              </div>
+              <span>{selectedVillageName}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onVillageChange(null);
+                setSearchInput("");
+                setShowSearchResults(false);
               }}
-              onFocus={() => searchInput && setShowSearchResults(true)}
-              onKeyDown={handleKeyDown}
               style={{
-                width: "100%",
-                padding: "clamp(10px, 3vw, 12px) 12px clamp(10px, 3vw, 12px) clamp(36px, 8vw, 40px)",
-                fontSize: "clamp(13px, 3.5vw, 14px)",
-                borderRadius: "6px",
-                border: "2px solid #e0e7ff",
-                boxSizing: "border-box",
-                backgroundColor: "#fff",
-                transition: "all 0.2s",
-                boxShadow: searchInput ? "0 2px 8px rgba(37, 99, 235, 0.15)" : "none",
-                borderColor: searchInput ? "#2563eb" : "#e0e7ff",
-                minHeight: "44px",
+                padding: "8px 16px",
+                background: "rgba(255,255,255,0.15)",
+                color: "#fff",
+                border: "1px solid rgba(255,255,255,0.3)",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontWeight: "600",
+                fontSize: "13px",
+                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                backdropFilter: "blur(4px)"
               }}
               onMouseEnter={(e) => {
-                if (searchInput) {
-                  e.target.style.borderColor = "#2563eb";
-                  e.target.style.boxShadow = "0 2px 8px rgba(37, 99, 235, 0.15)";
-                }
+                e.target.style.background = "rgba(255,255,255,0.25)";
+                e.target.style.transform = "translateY(-1px)";
               }}
               onMouseLeave={(e) => {
-                if (!searchInput) {
-                  e.target.style.borderColor = "#e0e7ff";
-                  e.target.style.boxShadow = "none";
-                }
-              }}
-            />
-            {searchInput && (
-              <button
-                onClick={() => {
-                  setSearchInput("");
-                  setShowSearchResults(false);
-                }}
-                style={{
-                  position: "absolute",
-                  right: 12,
-                  background: "none",
-                  border: "none",
-                  fontSize: "clamp(1em, 4vw, 1.1em)",
-                  cursor: "pointer",
-                  color: "#9ca3af",
-                  padding: "8px",
-                  transition: "color 0.2s",
-                  minWidth: "40px",
-                  minHeight: "40px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-                onMouseOver={(e) => e.target.style.color = "#2563eb"}
-                onMouseOut={(e) => e.target.style.color = "#9ca3af"}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-          
-          {/* Search Results Dropdown - Mobile Enhanced */}
-          {showSearchResults && searchInput.trim() && (
-            <div
-              ref={dropdownRef}
-              style={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                right: 0,
-                border: "1px solid #e0e7ff",
-                borderTop: "none",
-                borderRadius: "0 0 6px 6px",
-                backgroundColor: "#fff",
-                maxHeight: "clamp(200px, 50vh, 320px)",
-                overflowY: "auto",
-                zIndex: 10,
-                boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)",
+                e.target.style.background = "rgba(255,255,255,0.15)";
+                e.target.style.transform = "translateY(0)";
               }}
             >
-              {filteredVillages.length === 0 ? (
-                <div style={{ padding: "clamp(12px, 4vw, 16px)", color: "#92400e", textAlign: "center", fontSize: "clamp(13px, 3.5vw, 14px)", background: "#fef3c7" }}>
-                  <div style={{ fontSize: "1.5em", marginBottom: 6 }}>🔍</div>
-                  No villages found
-                </div>
-              ) : (
-                <>
-                  <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "#999", padding: "clamp(8px, 2vw, 8px) clamp(10px, 3vw, 12px)", backgroundColor: "#fafafa", fontWeight: "500", borderBottom: "1px solid #e0e7ff", position: "sticky", top: 0 }}>
-                    Found {filteredVillages.length} village{filteredVillages.length > 1 ? "s" : ""}
-                  </div>
-                  {filteredVillages.map((village, index) => (
-                    <div
-                      key={village.id}
-                      onClick={() => handleVillageSelect(village.id)}
-                      style={{
-                        padding: "clamp(12px, 3.5vw, 14px) clamp(12px, 4vw, 16px)",
-                        cursor: "pointer",
-                        backgroundColor: 
-                          highlightedIndex === index ? "#f0f7ff" : 
-                          selectedVillageId === village.id ? "#f0f0f0" : 
-                          "#fff",
-                        borderBottom: "1px solid #f0f0f0",
-                        fontWeight: highlightedIndex === index || selectedVillageId === village.id ? "600" : "400",
-                        color: "#1f2937",
-                        transition: "all 0.15s",
-                        minHeight: "44px",
-                        display: "flex",
-                        alignItems: "center",
-                        fontSize: "clamp(13px, 3.5vw, 15px)",
-                      }}
-                      onMouseEnter={(e) => {
-                        setHighlightedIndex(index);
-                        e.currentTarget.style.background = "#f0f7ff";
-                        e.currentTarget.style.paddingLeft = "clamp(16px, 4.5vw, 20px)";
-                      }}
-                      onMouseLeave={(e) => {
-                        if (highlightedIndex === index) {
-                          e.currentTarget.style.background = "#f0f7ff";
-                          e.currentTarget.style.paddingLeft = "clamp(12px, 4vw, 16px)";
-                        } else if (selectedVillageId === village.id) {
-                          e.currentTarget.style.background = "#f0f0f0";
-                          e.currentTarget.style.paddingLeft = "clamp(12px, 4vw, 16px)";
-                        } else {
-                          e.currentTarget.style.background = "#fff";
-                          e.currentTarget.style.paddingLeft = "clamp(12px, 4vw, 16px)";
-                        }
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                        <span>{village.name}</span>
-                        {selectedVillageId === village.id && <span style={{ color: "#16a34a", fontWeight: "bold", marginLeft: "8px" }}>✓</span>}
-                      </div>
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          )}
-        </div>
-        <div style={{ fontSize: "clamp(10px, 2vw, 11px)", color: "#999", marginTop: "6px", display: "none" }}>
-          💡 Type to search • ↓↑ to navigate • Enter to select • Esc to close
-        </div>
-      </div>
-
-      {/* Add New Village Section */}
-      <div style={{ marginBottom: "15px" }}>
-        <div style={{ fontSize: "clamp(11px, 2.5vw, 12px)", fontWeight: "600", color: "#666", marginBottom: "6px" }}>
-          ➕ Add New Village
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <input
-            type="text"
-            placeholder="Enter village name"
-            value={addNewInput}
-            onChange={(e) => setAddNewInput(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === "Enter" && addNewInput.trim()) {
-                handleCreateNewVillage();
-              }
-            }}
-            style={{
-              width: "100%",
-              padding: "clamp(10px, 3vw, 12px) clamp(10px, 3vw, 12px)",
-              fontSize: "clamp(13px, 3.5vw, 14px)",
-              borderRadius: "6px",
-              border: "1px solid #ddd",
-              boxSizing: "border-box",
-              backgroundColor: "#fff",
-              transition: "all 0.2s",
-              minHeight: "44px",
+              Change Selection
+            </button>
+          </div>
+        )}
+        
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", 
+          gap: "24px" 
+        }}>
+          {/* Search Village Section */}
+          <div style={{ position: "relative" }}>
+            <label style={{ 
+              display: "block",
+              fontSize: "0.875rem", 
+              fontWeight: "600", 
+              color: "#475569", 
+              marginBottom: "8px",
               display: "flex",
               alignItems: "center",
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = "#2563eb";
-              e.target.style.boxShadow = "0 2px 8px rgba(37, 99, 235, 0.15)";
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = "#ddd";
-              e.target.style.boxShadow = "none";
-            }}
-          />
-          <button
-            type="button"
-            onClick={handleCreateNewVillage}
-            disabled={!addNewInput.trim()}
-            style={{
-              width: "100%",
-              padding: "clamp(10px, 3vw, 12px) 14px",
-              background: addNewInput.trim() ? "#2563eb" : "#ccc",
-              color: "#fff",
-              border: "none",
-              borderRadius: "6px",
-              cursor: addNewInput.trim() ? "pointer" : "not-allowed",
-              fontWeight: "600",
-              fontSize: "clamp(13px, 3.5vw, 14px)",
-              transition: "background 0.2s",
-              minHeight: "44px",
-            }}
-            onMouseEnter={(e) => {
-              if (addNewInput.trim()) {
-                e.target.style.background = "#1d4ed8";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (addNewInput.trim()) {
-                e.target.style.background = "#2563eb";
-              }
-            }}
-          >
-            Add Village
-          </button>
+              gap: "6px"
+            }}>
+              <span style={{ color: "#3b82f6" }}>🔍</span> Search Existing Village
+            </label>
+            <div style={{ position: "relative" }}>
+              <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
+                <span style={{ position: "absolute", left: 16, color: "#94a3b8", fontSize: "1.1rem" }}>🔍</span>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Type village name..."
+                  value={searchInput}
+                  onChange={(e) => {
+                    setSearchInput(e.target.value);
+                    setShowSearchResults(true);
+                  }}
+                  onFocus={() => searchInput && setShowSearchResults(true)}
+                  onKeyDown={handleKeyDown}
+                  style={{
+                    width: "100%",
+                    padding: "14px 16px 14px 44px",
+                    fontSize: "0.95rem",
+                    borderRadius: "10px",
+                    border: "1px solid #cbd5e1",
+                    boxSizing: "border-box",
+                    backgroundColor: "#f8fafc",
+                    transition: "all 0.3s ease",
+                    outline: "none",
+                    minHeight: "48px",
+                    color: "#1e293b"
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!searchInput) e.target.style.backgroundColor = "#fff";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!searchInput) e.target.style.backgroundColor = "#f8fafc";
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#3b82f6";
+                    e.target.style.boxShadow = "0 0 0 4px rgba(59, 130, 246, 0.1)";
+                    e.target.style.backgroundColor = "#fff";
+                  }}
+                  onBlur={(e) => {
+                    if (!searchInput) {
+                      e.target.style.borderColor = "#cbd5e1";
+                      e.target.style.boxShadow = "none";
+                      e.target.style.backgroundColor = "#f8fafc";
+                    }
+                  }}
+                />
+                {searchInput && (
+                  <button
+                    onClick={() => {
+                      setSearchInput("");
+                      setShowSearchResults(false);
+                    }}
+                    style={{
+                      position: "absolute",
+                      right: 12,
+                      background: "#f1f5f9",
+                      border: "none",
+                      fontSize: "0.8rem",
+                      cursor: "pointer",
+                      color: "#64748b",
+                      borderRadius: "50%",
+                      width: "24px",
+                      height: "24px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all 0.2s"
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.background = "#e2e8f0";
+                      e.target.style.color = "#0f172a";
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.background = "#f1f5f9";
+                      e.target.style.color = "#64748b";
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              
+              {/* Search Results Dropdown */}
+              {showSearchResults && searchInput.trim() && (
+                <div
+                  ref={dropdownRef}
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 8px)",
+                    left: 0,
+                    right: 0,
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "10px",
+                    backgroundColor: "#fff",
+                    maxHeight: "280px",
+                    overflowY: "auto",
+                    zIndex: 20,
+                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+                    animation: "slideDown 0.2s ease-out"
+                  }}
+                >
+                  {filteredVillages.length === 0 ? (
+                    <div style={{ padding: "16px", color: "#b45309", textAlign: "center", fontSize: "0.95rem", background: "#fefce8", borderBottom: "1px solid #fef08a" }}>
+                      <div style={{ fontSize: "1.8rem", marginBottom: "8px" }}>🗺️</div>
+                      No villages found matching "{searchInput}"
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ 
+                        fontSize: "0.75rem", 
+                        color: "#64748b", 
+                        padding: "8px 16px", 
+                        backgroundColor: "#f8fafc", 
+                        fontWeight: "600", 
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        borderBottom: "1px solid #e2e8f0", 
+                        position: "sticky", 
+                        top: 0,
+                        zIndex: 2
+                      }}>
+                        Matches ({filteredVillages.length})
+                      </div>
+                      {filteredVillages.map((village, index) => (
+                        <div
+                          key={village.id}
+                          onClick={() => handleVillageSelect(village.id)}
+                          style={{
+                            padding: "12px 16px",
+                            cursor: "pointer",
+                            backgroundColor: 
+                              highlightedIndex === index ? "#eff6ff" : 
+                              selectedVillageId === village.id ? "#f8fafc" : 
+                              "#fff",
+                            borderBottom: "1px solid #f1f5f9",
+                            fontWeight: highlightedIndex === index || selectedVillageId === village.id ? "600" : "400",
+                            color: highlightedIndex === index ? "#1d4ed8" : "#334155",
+                            transition: "all 0.2s",
+                            minHeight: "48px",
+                            display: "flex",
+                            alignItems: "center",
+                            fontSize: "0.95rem"
+                          }}
+                          onMouseEnter={(e) => {
+                            setHighlightedIndex(index);
+                            e.currentTarget.style.background = "#eff6ff";
+                            e.currentTarget.style.color = "#1d4ed8";
+                            e.currentTarget.style.paddingLeft = "20px";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (highlightedIndex === index) {
+                              e.currentTarget.style.background = "#eff6ff";
+                              e.currentTarget.style.color = "#1d4ed8";
+                              e.currentTarget.style.paddingLeft = "16px";
+                            } else {
+                              e.currentTarget.style.background = selectedVillageId === village.id ? "#f8fafc" : "#fff";
+                              e.currentTarget.style.color = "#334155";
+                              e.currentTarget.style.paddingLeft = "16px";
+                            }
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <span style={{ opacity: 0.5 }}>📍</span>
+                              {village.name}
+                            </div>
+                            {selectedVillageId === village.id && (
+                              <span style={{ 
+                                background: "#dcfce7", 
+                                color: "#166534", 
+                                padding: "2px 8px", 
+                                borderRadius: "12px",
+                                fontSize: "0.75rem",
+                                fontWeight: "700" 
+                              }}>
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "8px", paddingLeft: "4px", display: "none" }}>
+              💡 Type to search • ↓↑ to navigate • Enter to select • Esc to close
+            </div>
+          </div>
+
+          {/* Add New Village Section */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <label style={{ 
+              display: "block",
+              fontSize: "0.875rem", 
+              fontWeight: "600", 
+              color: "#475569", 
+              marginBottom: "8px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px"
+            }}>
+              <span style={{ color: "#10b981" }}>➕</span> Add New Village
+            </label>
+            <div style={{ display: "flex", gap: "10px", alignItems: "stretch" }}>
+              <div style={{ position: "relative", flex: 1 }}>
+                <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: "1.1rem" }}>🏡</span>
+                <input
+                  type="text"
+                  placeholder="Enter village name"
+                  value={addNewInput}
+                  onChange={(e) => setAddNewInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter" && addNewInput.trim()) {
+                      handleCreateNewVillage();
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "14px 16px 14px 44px",
+                    fontSize: "0.95rem",
+                    borderRadius: "10px",
+                    border: "1px solid #cbd5e1",
+                    boxSizing: "border-box",
+                    backgroundColor: "#f8fafc",
+                    transition: "all 0.3s ease",
+                    outline: "none",
+                    minHeight: "48px",
+                    color: "#1e293b",
+                    height: "100%"
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#10b981";
+                    e.target.style.boxShadow = "0 0 0 4px rgba(16, 185, 129, 0.1)";
+                    e.target.style.backgroundColor = "#fff";
+                  }}
+                  onBlur={(e) => {
+                    if (!addNewInput) {
+                      e.target.style.borderColor = "#cbd5e1";
+                      e.target.style.boxShadow = "none";
+                      e.target.style.backgroundColor = "#f8fafc";
+                    }
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!addNewInput) e.target.style.backgroundColor = "#fff";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!addNewInput) e.target.style.backgroundColor = "#f8fafc";
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleCreateNewVillage}
+                disabled={!addNewInput.trim()}
+                style={{
+                  padding: "0 24px",
+                  background: addNewInput.trim() ? "linear-gradient(135deg, #10b981 0%, #059669 100%)" : "#e2e8f0",
+                  color: addNewInput.trim() ? "#fff" : "#94a3b8",
+                  border: "none",
+                  borderRadius: "10px",
+                  cursor: addNewInput.trim() ? "pointer" : "not-allowed",
+                  fontWeight: "700",
+                  fontSize: "0.95rem",
+                  transition: "all 0.3s ease",
+                  boxShadow: addNewInput.trim() ? "0 4px 12px rgba(16, 185, 129, 0.3)" : "none",
+                  whiteSpace: "nowrap"
+                }}
+                onMouseEnter={(e) => {
+                  if (addNewInput.trim()) {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow = "0 6px 15px rgba(16, 185, 129, 0.4)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (addNewInput.trim()) {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.3)";
+                  }
+                }}
+              >
+                Add Village
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

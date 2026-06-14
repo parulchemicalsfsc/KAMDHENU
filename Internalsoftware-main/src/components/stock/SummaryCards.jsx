@@ -89,15 +89,15 @@ export const SummaryCards = ({ totalTaken, totalSold, totalDairy, totalRemaining
     <>
       <style>{`
         @keyframes float {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(10px, -10px); }
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-10px) rotate(5deg); }
         }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: translateY(15px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
         .summary-card-container > div {
-          animation: fadeIn 0.5s ease-out;
+          animation: fadeInScale 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
         }
       `}</style>
       
@@ -105,45 +105,45 @@ export const SummaryCards = ({ totalTaken, totalSold, totalDairy, totalRemaining
         className="summary-card-container"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(clamp(200px, 100%, 280px), 1fr))",
-          gap: "clamp(12px, 3vw, 20px)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(clamp(240px, 100%, 280px), 1fr))",
+          gap: "clamp(16px, 3vw, 24px)",
           marginBottom: "30px",
         }}
       >
         <SummaryCard
           title="📦 Stock Taken to Demo"
           value={totalTaken.toFixed(2)}
-          backgroundColor="#e3f2fd"
-          borderColor="#2196F3"
-          textColor="#1976d2"
-          subtitle="Total units"
+          backgroundColor="linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)"
+          borderColor="#38bdf8"
+          textColor="#0284c7"
+          subtitle="Total units out"
         />
 
         <SummaryCard
           title="💰 Stock Sold"
           value={totalSold.toFixed(2)}
-          backgroundColor="#f3e5f5"
-          borderColor="#9c27b0"
-          textColor="#6a1b9a"
-          subtitle="Total units"
+          backgroundColor="linear-gradient(135deg, #f5d0fe 0%, #e879f9 100%)"
+          borderColor="#d946ef"
+          textColor="#a21caf"
+          subtitle="Total units sold"
         />
 
         <SummaryCard
           title="🏪 Stock at Dairy"
           value={totalDairy.toFixed(2)}
-          backgroundColor="#fff3e0"
-          borderColor="#ff9800"
-          textColor="#e65100"
-          subtitle="Total units"
+          backgroundColor="linear-gradient(135deg, #fef08a 0%, #fde047 100%)"
+          borderColor="#eab308"
+          textColor="#ca8a04"
+          subtitle="Left at dairy"
         />
 
         <SummaryCard
           title="✅ Stock Remaining"
           value={totalRemaining.toFixed(2)}
-          backgroundColor="#e8f5e9"
-          borderColor="#4CAF50"
-          textColor={totalRemaining >= 0 ? "#2e7d32" : "#d32f2f"}
-          subtitle={totalRemaining < 0 ? "⚠️ Oversold!" : "Units left"}
+          backgroundColor={totalRemaining >= 0 ? "linear-gradient(135deg, #dcfce7 0%, #86efac 100%)" : "linear-gradient(135deg, #fee2e2 0%, #fca5a5 100%)"}
+          borderColor={totalRemaining >= 0 ? "#22c55e" : "#ef4444"}
+          textColor={totalRemaining >= 0 ? "#166534" : "#991b1b"}
+          subtitle={totalRemaining < 0 ? "⚠️ Oversold!" : "Actual units left"}
         />
       </div>
     </>

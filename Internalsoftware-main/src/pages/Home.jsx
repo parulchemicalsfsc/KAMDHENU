@@ -134,7 +134,7 @@ export default function Home() {
   });
 
   quickActions.push({
-    to: "/",
+    to: "/stock-dashboard",
     icon: "📦",
     title: "Stock Dashboard",
     description: "Monitor inventory levels and stock movements."
@@ -268,9 +268,7 @@ export default function Home() {
           </div>
         )}
 
-        <footer className="footer-credit">
-          <small>Powered by Parul Chemicals • FS CALCIVAL</small>
-        </footer>
+
       </div>
     </div>
   );
