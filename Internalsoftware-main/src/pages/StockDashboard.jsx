@@ -51,7 +51,7 @@ const StockDashboard = () => {
   return (
     <>
       <Navbar />
-      <div className="container" style={{ paddingTop: "20px" }}>
+      <div className="container" style={{ paddingTop: "20px", maxWidth: "1200px", margin: "0 auto", padding: "20px" }}>
         <h1>📊 Stock Dashboard</h1>
 
         {/* Village Selection */}

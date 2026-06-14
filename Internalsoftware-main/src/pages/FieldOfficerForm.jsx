@@ -774,11 +774,7 @@ export default function FieldOfficerForm() {
           </button>
         </div>
 
-        {/* Footer Credit */}
-        <footer style={{ textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '12px' }}>
-          <p>MADE WITH AI BY <strong>S&J</strong></p>
-          <p>Powered by Parul Chemicals • FS CALCIVAL</p>
-        </footer>
+
       </div>
 
       {/* Remarks Modal */}

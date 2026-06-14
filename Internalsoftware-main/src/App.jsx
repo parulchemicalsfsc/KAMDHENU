@@ -12,6 +12,7 @@ import RequireAuth from "./components/RequireAuth";
 import MemberPage from "./pages/MemberPage";
 import RequireRole from "./components/RequireRole";
 import AdminPanel from "./pages/AdminPanel";
+import StockDashboard from "./pages/StockDashboard";
 import "./style/form.css";
 
 import OfflineBanner from "./components/OfflineBanner";
@@ -58,6 +59,15 @@ export default function App() {
           element={
             <RequireAuth>
               <ViewRoute />
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path="/stock-dashboard"
+          element={
+            <RequireAuth>
+              <StockDashboard />
             </RequireAuth>
           }
         />

@@ -246,6 +246,9 @@ const DemoSalesList = () => {
   const [isFileUploadCollapsed, setIsFileUploadCollapsed] = useState(true);
   const [lastVillageId, setLastVillageId] = useState(null);
   const [lastVillageName, setLastVillageName] = useState(null);
+  const [currentStep, setCurrentStep] = useState(1);
+  const nextStep = () => { window.scrollTo({top: 0, behavior: 'smooth'}); setCurrentStep(prev => Math.min(prev + 1, 4)); };
+  const prevStep = () => { window.scrollTo({top: 0, behavior: 'smooth'}); setCurrentStep(prev => Math.max(prev - 1, 1)); };
 
   // Get current user email from auth, load last village, and cache user Firestore doc ID (Issue 3 fix)
   useEffect(() => {
@@ -2337,6 +2340,20 @@ ${paymentLines || "—"}
           autoComplete="off"
           style={{ width: "100%" }}
         >
+          {/* Progress Indicator */}
+          <div style={{ padding: "16px 24px", background: "#fff", borderBottom: "1px solid #e2e8f0" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0d6efd", textTransform: "uppercase" }}>Step {currentStep} of 4</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0d6efd" }}>{currentStep * 25}% Complete</span>
+            </div>
+            <div style={{ height: "6px", background: "#e9ecef", borderRadius: "3px", overflow: "hidden" }}>
+              <div style={{ width: `${currentStep * 25}%`, height: "100%", background: "#0d6efd", transition: "width 0.3s ease" }} />
+            </div>
+          </div>
+
+          <div style={{ padding: "24px" }}>
+            {currentStep === 1 && (
+              <div>
           {/* Dairy Info */}
           <div
             className="section-card"
@@ -2669,6 +2686,16 @@ ${paymentLines || "—"}
                   </div>
                 </div>
               )}
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}>
+                <button type="button" onClick={nextStep} style={{ background: "#0d6efd", color: "#fff", padding: "12px 24px", borderRadius: 8, fontWeight: 600, border: "none", cursor: "pointer", fontSize: "16px" }}>Save & Continue ➔</button>
+              </div>
+            </div>
+            </div>
+            )}
+
+            {currentStep === 2 && (
+              <div>
               {/* ========== STOCK TAKEN TO VILLAGE SECTION ========== */}
               <div
                 className="section-card"
@@ -3051,6 +3078,15 @@ ${paymentLines || "—"}
                   )}
                 </div>
               </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}>
+                <button type="button" onClick={prevStep} style={{ background: "#e2e8f0", color: "#1e293b", padding: "12px 24px", borderRadius: 8, fontWeight: 600, border: "none", cursor: "pointer", fontSize: "16px" }}>⬅ Previous</button>
+                <button type="button" onClick={nextStep} style={{ background: "#0d6efd", color: "#fff", padding: "12px 24px", borderRadius: 8, fontWeight: 600, border: "none", cursor: "pointer", fontSize: "16px" }}>Save & Continue ➔</button>
+              </div>
+              </div>
+            )}
+
+            {currentStep === 3 && (
+              <div>
               {/* Customer Section */}
               <div
                 ref={customerFormRef}
@@ -4263,6 +4299,15 @@ ${paymentLines || "—"}
                   </div>
                 )}
               </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}>
+                <button type="button" onClick={prevStep} style={{ background: "#e2e8f0", color: "#1e293b", padding: "12px 24px", borderRadius: 8, fontWeight: 600, border: "none", cursor: "pointer", fontSize: "16px" }}>⬅ Previous</button>
+                <button type="button" onClick={nextStep} style={{ background: "#0d6efd", color: "#fff", padding: "12px 24px", borderRadius: 8, fontWeight: 600, border: "none", cursor: "pointer", fontSize: "16px" }}>Review & Submit ➔</button>
+              </div>
+              </div>
+            )}
+
+            {currentStep === 4 && (
+              <div>
               {/* Stock at Dairy */}
               <div
                 className="section-card"
@@ -5330,22 +5375,14 @@ ${paymentLines || "—"}
                   {submitError}
                 </div>
               )}
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}>
+                <button type="button" onClick={prevStep} style={{ background: "#e2e8f0", color: "#1e293b", padding: "12px 24px", borderRadius: 8, fontWeight: 600, border: "none", cursor: "pointer", fontSize: "16px" }}>⬅ Previous</button>
+              </div>
+              </div>
+            )}
             </div>
-          </div>
         </form>
-        <footer
-          className="footer-credit"
-          style={{
-            marginTop: 32,
-            borderTop: "1px solid #e3eefd",
-            paddingTop: 12,
-          }}
-        >
-          <p>
-            MADE WITH AI BY <strong>S&J</strong>
-          </p>
-          <small>Powered by Parul Chemicals • FS CALCIVAL</small>
-        </footer>
+
       </div>
     </>
   );

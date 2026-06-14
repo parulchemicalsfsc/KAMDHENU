@@ -31,12 +31,13 @@ export default function Navbar() {
     { to: '/member-page', label: 'Member' },
     { to: '/route-planner', label: 'Route Planner' },
     { to: '/view-route', label: 'View Route' },
+    { to: '/stock-dashboard', label: 'Stock Dashboard' },
   ];
 
   // Filter links dynamically based on user role and history permissions
   const navLinks = baseNavLinks.filter(link => {
     // Open pages for all authenticated users
-    if (['/', '/member-page', '/route-planner', '/view-route'].includes(link.to)) {
+    if (['/', '/member-page', '/route-planner', '/view-route', '/stock-dashboard'].includes(link.to)) {
       return true;
     }
     // Demo sales is open to all users
@@ -318,21 +319,23 @@ export default function Navbar() {
           )}
         </>
       ) : (
-        <div className="navbar-links" style={{ display: 'flex', gap: 18, alignItems: 'center', marginLeft: 'auto' }}>
+        <div className="navbar-links" style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
           {navLinks.map((link) => (
             <Link
               key={link.to}
               to={link.to}
               className={`navbar-link${location.pathname === link.to ? " active" : ""}`}
               style={{
-                padding: '8px 18px',
-                fontSize: '1.08em',
+                padding: '6px 10px',
+                fontSize: '0.98em',
                 color: location.pathname === link.to ? '#2563eb' : '#174ea6',
                 fontWeight: location.pathname === link.to ? 700 : 500,
                 background: location.pathname === link.to ? '#e3eefd' : 'transparent',
                 border: 'none',
                 borderRadius: 8,
                 textDecoration: 'none',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
               }}
               onClick={() => setMenuOpen(false)}
             >
@@ -347,11 +350,13 @@ export default function Navbar() {
               color: '#b91c1c',
               border: '1.5px solid #e3eefd',
               borderRadius: '8px',
-              padding: '8px 18px',
+              padding: '6px 10px',
               fontWeight: 700,
-              fontSize: '1.08em',
+              fontSize: '0.98em',
               cursor: 'pointer',
               boxShadow: '0 1px 6px #2563eb11',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
             }}
           >
             Logout

@@ -524,8 +524,21 @@ export default function MemberPage() {
   return (
     <>
       <Navbar />
-      <div style={{ padding: 20 }}>
-      <h1>Member Page</h1>
+      <div style={{ padding: "clamp(12px, 3vw, 24px)" }}>
+        <div style={{
+          maxWidth: 1200, margin: "0 auto", background: "#f7fafd",
+          borderRadius: 18, border: "1px solid #d1e3f8",
+          boxShadow: "0 8px 32px rgba(13, 110, 253, 0.08)", overflow: "hidden"
+        }}>
+          <div style={{
+            background: "linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%)",
+            padding: "20px 24px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center"
+          }}>
+            <h2 style={{ margin: 0, fontWeight: 700, fontSize: "1.5rem" }}>Members</h2>
+            <button style={{background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.4)", color: "#fff", padding: "6px 16px", borderRadius: "6px", fontWeight: "600", cursor: "pointer"}}>CANCEL</button>
+          </div>
+          
+          <div style={{ padding: "24px" }}>
 
       {/* Village Selection with Search */}
       {villages.length === 0 ? (
@@ -1363,10 +1376,11 @@ export default function MemberPage() {
           </div>
         </div>
       )}
+          </div>
+        </div>
       </div>
     </>
   );
 }
- 
- 
- 
+
+
