@@ -1,16 +1,66 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import "../style/form.css";
 import useAuth from "../hooks/useAuth";
 import { addFieldOfficer } from "../services/userService";
 import { toast } from "react-toastify";
+import { db } from "../firebase";
+import { collection, getDocs } from "firebase/firestore";
+import { Pie, Bar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+} from "chart.js";
 
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 export default function Home() {
   const { user, profile, role, canViewHistory } = useAuth();
   const [officerEmail, setOfficerEmail] = useState("");
   const [addingOfficer, setAddingOfficer] = useState(false);
+  const [summaryData, setSummaryData] = useState({ totalRoutes: 0, totalPayment: 0, paymentTarget: 0, totalOrders: 0, totalCustomers: 0 });
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const routeSnap = await getDocs(collection(db, "routePlans"));
+        const routeData = routeSnap.docs.map(doc => doc.data());
+        let totalRoutes = routeData.length;
+        let totalPayment = 0;
+        let paymentTarget = 0;
+        let totalOrders = 0;
+        
+        routeData.forEach(plan => {
+          if (plan.routes) {
+            plan.routes.forEach(r => {
+              paymentTarget += Number(r.paymentTarget || 0);
+              totalPayment += Number(r.paymentCollected || 0);
+              if (r.actualStock) {
+                r.actualStock.forEach(s => totalOrders += Number(s.qty || 0));
+              }
+            });
+          }
+        });
+
+        const custSnap = await getDocs(collection(db, "customers"));
+        let totalCustomers = custSnap.docs.length;
+
+        setSummaryData({ totalRoutes, totalPayment, paymentTarget, totalOrders, totalCustomers });
+      } catch (err) {
+        console.error("Failed to load dashboard data", err);
+      }
+    };
+    
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
 
   const handleAddOfficer = async (e) => {
     e.preventDefault();
@@ -33,208 +83,196 @@ export default function Home() {
     }
   };
 
+  const quickActions = [];
+
+  if (['admin', 'manager', 'field_officer'].includes(role)) {
+    quickActions.push({
+      to: "/form",
+      icon: "📝",
+      title: "Daily Form",
+      description: "Record today's milk and chemical collection data across your assigned route."
+    });
+  }
+
+  quickActions.push({
+    to: "/demo-sales-list",
+    icon: "🧾",
+    title: "Demo Sales",
+    description: "Log product demonstrations, sampling results, and potential sales leads."
+  });
+
+  quickActions.push({
+    to: "/member-page",
+    icon: "👥",
+    title: "Members",
+    description: "Manage producer profiles and view detailed client performance metrics."
+  });
+
+  if (role === 'admin' || canViewHistory) {
+    quickActions.push({
+      to: "/history",
+      icon: "📜",
+      title: "History",
+      description: "Review past entry records, submission logs, and performance analytics."
+    });
+  }
+
+  if (role !== 'field_officer') {
+    quickActions.push({
+      to: "/MoM-generator",
+      icon: "📋",
+      title: "Generate MOM",
+      description: "Create and manage meeting minutes and reports."
+    });
+  }
+
+  quickActions.push({
+    to: "/route-planner",
+    icon: "🗺️",
+    title: "Route",
+    description: "Plan and view your daily field routes."
+  });
+
+  quickActions.push({
+    to: "/",
+    icon: "📦",
+    title: "Stock Dashboard",
+    description: "Monitor inventory levels and stock movements."
+  });
+
+  const pieData = {
+    labels: ["Collected (₹)", "Pending (₹)"],
+    datasets: [{
+      data: [summaryData.totalPayment, Math.max(0, summaryData.paymentTarget - summaryData.totalPayment)],
+      backgroundColor: ["#10b981", "#f59e0b"],
+      borderWidth: 0,
+      hoverOffset: 4
+    }]
+  };
+
+  const barData = {
+    labels: ["Orders", "Routes", "Customers"],
+    datasets: [{
+      label: "System Metrics",
+      data: [summaryData.totalOrders, summaryData.totalRoutes, summaryData.totalCustomers],
+      backgroundColor: ["#3b82f6", "#8b5cf6", "#ec4899"],
+      borderRadius: 6,
+    }]
+  };
 
   return (
-    <>
+    <div className="app-container">
       <Navbar />
-      <div
-        className="form-container"
-        style={{ maxWidth: 480, marginTop: 40, textAlign: "center" }}
-      >
-        {user && (
-          <h2
-            style={{
-              color: "#2c3e50",
-              fontWeight: 700,
-              marginBottom: 20,
-              fontSize: "1.6rem",
-            }}
-          >
-            Hello {profile?.username || user.displayName || user.email}, 🚀<br />
-            Let’s get going!
-          </h2>
-        )}
-
-        <h1
-          style={{
-            color: "#1976d2",
-            fontWeight: 900,
-            fontSize: "2.1rem",
-            marginBottom: 8,
-            letterSpacing: "0.04em",
-          }}
-        >
-          KAMDHENU
-        </h1>
-        <p
-          style={{
-            color: "#7b8ca6",
-            fontWeight: 500,
-            marginBottom: 32,
-            fontSize: "1.08em",
-          }}
-        >
-          Welcome! Choose an action below to get started.
-        </p>
-
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 18,
-            marginBottom: 32,
-          }}
-        >
-          {['admin', 'manager', 'field_officer'].includes(role) && (
-            <Link
-              to="/form"
-              className="btn-primary"
-              style={{ fontSize: "1.1em", padding: "16px 0" }}
-            >
-              📝 Fill Daily Form
-            </Link>
-          )}
-
-          <Link
-            to="/demo-sales-list"
-            className="btn-outline"
-            style={{ fontSize: "1.1em", padding: "16px 0" }}
-          >
-            🧾 Demo Sales List
-          </Link>
-
-          {role !== 'field_officer' && (
-            <Link
-              to="/demo-history"
-              className="btn-outline"
-              style={{ fontSize: "1.1em", padding: "16px 0" }}
-            >
-              📊 Demo Sales History
-            </Link>
-          )}
-
-          {role !== 'field_officer' && (
-            <Link
-              to="/MoM-generator"
-              className="btn-outline"
-              style={{ fontSize: "1.1em", padding: "16px 0" }}
-            >
-              📝 Generate MoM
-            </Link>
-          )}
-
-          <Link
-            to="/member-page"
-            className="btn-outline"
-            style={{ fontSize: "1.1em", padding: "16px 0" }}
-          >
-            Member Demo Entry
-          </Link>
-
-          {(role === 'admin' || canViewHistory) && (
-            <Link
-              to="/history"
-              className="btn-outline"
-              style={{ fontSize: "1.1em", padding: "16px 0" }}
-            >
-              📜 View Submission History
-            </Link>
-          )}
+      <div className="home-dashboard">
+        
+        {/* Welcome Banner */}
+        <div className="welcome-banner">
+          <div className="banner-content">
+            {user && (
+              <h2 className="welcome-title">
+                Hello, {profile?.username || user.displayName || user.email}
+              </h2>
+            )}
+            <p className="welcome-subtitle">Welcome! Choose an action below to get started.</p>
+          </div>
         </div>
 
+        {/* Business Overview Section */}
+        <div className="dashboard-section" style={{ marginTop: '24px' }}>
+          <h3 className="section-title">BUSINESS OVERVIEW</h3>
+          
+          {/* Summary Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+            <div style={{ background: '#fff', padding: '20px', borderRadius: '14px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', borderLeft: '4px solid #3b82f6' }}>
+              <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.05em' }}>TOTAL CUSTOMERS</p>
+              <h4 style={{ margin: '8px 0 0', fontSize: '2rem', color: '#1e293b', fontWeight: 900 }}>{summaryData.totalCustomers}</h4>
+            </div>
+            <div style={{ background: '#fff', padding: '20px', borderRadius: '14px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', borderLeft: '4px solid #8b5cf6' }}>
+              <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.05em' }}>COMPLETED ROUTES</p>
+              <h4 style={{ margin: '8px 0 0', fontSize: '2rem', color: '#1e293b', fontWeight: 900 }}>{summaryData.totalRoutes}</h4>
+            </div>
+            <div style={{ background: '#fff', padding: '20px', borderRadius: '14px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', borderLeft: '4px solid #10b981' }}>
+              <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.05em' }}>TOTAL COLLECTED</p>
+              <h4 style={{ margin: '8px 0 0', fontSize: '2rem', color: '#1e293b', fontWeight: 900 }}>₹{summaryData.totalPayment}</h4>
+            </div>
+          </div>
+
+          {/* Charts Area */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+            {/* Pie Chart Card */}
+            <div style={{ background: '#fff', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+              <h4 style={{ margin: '0 0 20px', color: '#334155', fontWeight: 800, textAlign: 'center' }}>Payments: Target vs Collected</h4>
+              <div style={{ position: 'relative', height: '240px', display: 'flex', justifyContent: 'center' }}>
+                <Pie data={pieData} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }} />
+              </div>
+            </div>
+
+            {/* Bar Chart Card */}
+            <div style={{ background: '#fff', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+              <h4 style={{ margin: '0 0 20px', color: '#334155', fontWeight: 800, textAlign: 'center' }}>Overall Engagement Metrics</h4>
+              <div style={{ position: 'relative', height: '240px' }}>
+                <Bar data={barData} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions Section */}
+        <div className="dashboard-section" style={{ marginTop: '32px' }}>
+          <h3 className="section-title">QUICK ACTIONS</h3>
+          <div className="quick-actions-grid">
+            {quickActions.map((action, idx) => (
+              <Link to={action.to} className="action-card" key={idx}>
+                <div className="action-icon-wrapper">
+                  <span className="action-icon">{action.icon}</span>
+                </div>
+                <div className="action-details">
+                  <h4 className="action-title">{action.title}</h4>
+                  <p className="action-description">{action.description}</p>
+                </div>
+                <div className="action-arrow">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
 
         {/* Manager Section: Add Field Officer */}
         {role === "manager" && (
-          <div
-            className="section-card"
-            style={{
-              background: "#fff",
-              border: "1.5px solid #e2e8f0",
-              margin: "0 auto 24px auto",
-              padding: 20,
-              borderRadius: 12,
-              textAlign: "left"
-            }}
-          >
-            <h3 style={{ color: "#1e293b", margin: "0 0 4px 0", fontSize: "1.1rem", fontWeight: 700 }}>
-              👤 Add Field Officer
-            </h3>
-            <p style={{ color: "#64748b", margin: "0 0 16px 0", fontSize: "0.85rem" }}>
+          <div className="manager-card">
+            <div className="manager-card-header">
+              <span className="manager-icon">👤</span>
+              <h3 className="manager-title">Add Field Officer</h3>
+            </div>
+            <p className="manager-desc">
               Enter the email of a registered user to assign them as a Field Officer.
             </p>
-            <form onSubmit={handleAddOfficer} style={{ display: "flex", gap: 10 }}>
+            <form onSubmit={handleAddOfficer} className="manager-form">
               <input
                 type="email"
                 placeholder="Field Officer's email"
                 value={officerEmail}
                 onChange={(e) => setOfficerEmail(e.target.value)}
                 required
-                style={{
-                  flex: 1,
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: "1.5px solid #cbd5e1",
-                  fontSize: "0.95rem"
-                }}
+                className="manager-input"
               />
               <button
                 type="submit"
                 disabled={addingOfficer}
-                className="btn-primary"
-                style={{
-                  padding: "0 18px",
-                  borderRadius: 8,
-                  fontSize: "0.95rem",
-                  fontWeight: 600,
-                  whiteSpace: "nowrap"
-                }}
+                className="manager-btn"
               >
-                {addingOfficer ? "Adding..." : "Add"}
+                {addingOfficer ? "Adding..." : "Add Officer"}
               </button>
             </form>
           </div>
         )}
 
-
-        <div
-          className="section-card"
-          style={{
-            background: "#f7fafd",
-            margin: "0 auto",
-            marginBottom: 0,
-            padding: 18,
-          }}
-        >
-          <h3
-            style={{
-              color: "#2563eb",
-              fontWeight: 700,
-              margin: 0,
-              marginBottom: 8,
-              fontSize: "1.08em",
-            }}
-          >
-            Dashboard (Coming Soon)
-          </h3>
-          <ul
-            style={{
-              color: "#7b8ca6",
-              fontWeight: 500,
-              fontSize: "1em",
-              margin: 0,
-              padding: 0,
-              listStyle: "none",
-            }}
-          >
-            <li>• Quick stats and analytics will appear here.</li>
-            <li>• Recent submissions, expense totals, and more.</li>
-          </ul>
-        </div>
-
-        <footer className="footer-credit" style={{ marginTop: 32 }}>
+        <footer className="footer-credit">
           <small>Powered by Parul Chemicals • FS CALCIVAL</small>
         </footer>
       </div>
-    </>
+    </div>
   );
 }
+

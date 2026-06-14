@@ -306,17 +306,9 @@ export default function FieldOfficerForm() {
   };
 
   return (
-    <div className="daily-form-page">
-      <div className="daily-form-header">
-        <button className="back-button" onClick={() => navigate(-1)}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        </button>
-        <span className="header-title">Daily Form</span>
-        <button className="header-more">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-        </button>
-      </div>
-
+    <>
+      <Navbar />
+      <div className="daily-form-page">
       <div className="daily-form-container">
         {/* Officer Details */}
         <section className="form-section section-dotted">
@@ -829,5 +821,6 @@ export default function FieldOfficerForm() {
         </div>
       )}
     </div>
+    </>
   );
 }

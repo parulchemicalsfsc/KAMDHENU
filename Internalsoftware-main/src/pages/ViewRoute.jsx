@@ -8,6 +8,7 @@ import {
   Tooltip,
   Legend
 } from "chart.js";
+import Navbar from "../components/Navbar";
 import "../style/form.css";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -67,8 +68,10 @@ export default function RouteViewer() {
   };
 
   return (
-    <div className="route-dashboard">
-      <div className="dashboard-card">
+    <>
+      <Navbar />
+      <div className="route-dashboard">
+        <div className="dashboard-card">
         <h2>Route Summary</h2>
         
         <div className="date-select">
@@ -94,5 +97,6 @@ export default function RouteViewer() {
         </div>
       </div>
     </div>
+    </>
   );
 }
