@@ -27,11 +27,11 @@ export default function Navbar() {
     { to: '/', label: 'Home' },
     { to: '/form', label: 'Daily Form' },
     { to: '/demo-sales-list', label: 'Demo Sales List' },
-    { to: '/history', label: 'History' },
     { to: '/member-page', label: 'Member' },
     { to: '/route-planner', label: 'Route Planner' },
     { to: '/view-route', label: 'View Route' },
     { to: '/stock-dashboard', label: 'Stock Dashboard' },
+    { to: '/history', label: 'History' },
   ];
 
   // Filter links dynamically based on user role and history permissions
