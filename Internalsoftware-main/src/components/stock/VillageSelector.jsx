@@ -260,7 +260,6 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
           {/* Search Village Section */}
           <div style={{ position: "relative" }}>
             <label style={{ 
-              display: "block",
               fontSize: "0.875rem", 
               fontWeight: "600", 
               color: "#475569", 
@@ -283,7 +282,7 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
                     setSearchInput(e.target.value);
                     setShowSearchResults(true);
                   }}
-                  onFocus={() => searchInput && setShowSearchResults(true)}
+
                   onKeyDown={handleKeyDown}
                   style={{
                     width: "100%",
@@ -305,6 +304,7 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
                     if (!searchInput) e.target.style.backgroundColor = "#f8fafc";
                   }}
                   onFocus={(e) => {
+                    if (searchInput) setShowSearchResults(true);
                     e.target.style.borderColor = "#3b82f6";
                     e.target.style.boxShadow = "0 0 0 4px rgba(59, 130, 246, 0.1)";
                     e.target.style.backgroundColor = "#fff";
@@ -465,7 +465,6 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
           {/* Add New Village Section */}
           <div style={{ display: "flex", flexDirection: "column" }}>
             <label style={{ 
-              display: "block",
               fontSize: "0.875rem", 
               fontWeight: "600", 
               color: "#475569", 

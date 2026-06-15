@@ -6,7 +6,7 @@ import useAuth from "../hooks/useAuth";
 import { addFieldOfficer } from "../services/userService";
 import { toast } from "react-toastify";
 import { db } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { Pie, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -29,7 +29,7 @@ export default function Home() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const routeSnap = await getDocs(collection(db, "routePlans"));
+        const routeSnap = await getDocs(query(collection(db, "routePlans"), orderBy("createdAt", "desc"), limit(100)));
         const routeData = routeSnap.docs.map(doc => doc.data());
         let totalRoutes = routeData.length;
         let totalPayment = 0;
@@ -48,7 +48,7 @@ export default function Home() {
           }
         });
 
-        const custSnap = await getDocs(collection(db, "customers"));
+        const custSnap = await getDocs(query(collection(db, "customers"), limit(500)));
         let totalCustomers = custSnap.docs.length;
 
         setSummaryData({ totalRoutes, totalPayment, paymentTarget, totalOrders, totalCustomers });

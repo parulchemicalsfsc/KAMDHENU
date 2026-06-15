@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import Navbar from "../Navbar";
 import { toast } from "react-toastify";
-import ExcelJS from "exceljs";
 import "../../style/form.css";
 
 // Import custom hooks
@@ -98,6 +97,7 @@ const StockManagement = () => {
 
   const handleExportToExcel = async () => {
     try {
+      const ExcelJS = await import("exceljs");
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet("Stock Data");
 

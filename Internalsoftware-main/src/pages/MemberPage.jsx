@@ -17,7 +17,6 @@ import { getAuth } from "firebase/auth";
 import { getPackagingNames, getPriceByName, getLitresByName } from "../config/packagingConfig";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import Navbar from "../components/Navbar";
-import ExcelJS from "exceljs";
 import { toast } from "react-toastify";
 import { VillageSelector } from "../components/stock/VillageSelector";
 import { compressImage, getBase64SizeInMB } from "../utils/imageCompressionUtils";
@@ -304,6 +303,7 @@ export default function MemberPage() {
     reader.onload = async (evt) => {
       try {
         const arrayBuffer = evt.target.result;
+        const ExcelJS = await import("exceljs");
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(arrayBuffer);
         const worksheet = workbook.worksheets[0];

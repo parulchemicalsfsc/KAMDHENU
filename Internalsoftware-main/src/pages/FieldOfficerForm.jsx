@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import Navbar from '../components/Navbar';
 import '../style/DailyForm.css';
 import { collection, addDoc } from 'firebase/firestore';
@@ -199,8 +197,10 @@ export default function FieldOfficerForm() {
   };
 
   // --- Export & Submit ---
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
       const doc = new jsPDF();
       doc.setFont('helvetica');
 

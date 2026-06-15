@@ -1,6 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { db } from '../firebase';
 import Navbar from '../components/Navbar';
 import {
@@ -228,8 +226,10 @@ export default function History() {
       })
     : records;
 
-  // ── PDF Export (unchanged) ────────────────────────────────────────────────
-  const exportRecordToPDF = (record) => {
+  // ── PDF Export ────────────────────────────────────────────────
+  const exportRecordToPDF = async (record) => {
+    const { jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
     const docPdf = new jsPDF();
     docPdf.setFont('helvetica');
     docPdf.setFontSize(16);

@@ -1,16 +1,11 @@
 import React, { useEffect, useState } from "react";
-import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
 import Navbar from "../components/Navbar";
 import "../style/form.css";
 
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-
-// Attach the plugin to jsPDF
-jsPDF.autoTable = autoTable;
+// NotoSansGujarati import will be used in lazy loaded PDF handler
 
 import { notoSansGujarati } from "../utils/pdfUtils";
 
@@ -220,6 +215,7 @@ export default function DemoSalesHistory() {
 
                         try {
                           // ----- EXCEL EXPORT -----
+                          const ExcelJS = await import("exceljs");
                           const workbook = new ExcelJS.Workbook();
                           const sheet = workbook.addWorksheet("Demo Sales");
 
@@ -288,11 +284,14 @@ export default function DemoSalesHistory() {
                       };
 
                       // ----- OPTIONAL PDF EXPORT -----
-                      const handleDownloadPDF = (r) => {
+                      const handleDownloadPDF = async (r) => {
                         setDownloadError(r.id, "");
                         setDownloading(r.id, true);
 
                         try {
+                          const { jsPDF } = await import("jspdf");
+                          const { default: autoTable } = await import("jspdf-autotable");
+                          jsPDF.autoTable = autoTable;
                           const doc = new jsPDF();
 
                           // Register Gujarati font if available

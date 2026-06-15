@@ -14,15 +14,6 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff,woff2}"],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/cdn\.tailwindcss\.com/,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "tailwind-cdn",
-              expiration: { maxEntries: 5, maxAgeSeconds: 31536000 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
             urlPattern: /^https:\/\/fonts\.googleapis\.com/,
             handler: "StaleWhileRevalidate",
             options: {
@@ -90,6 +81,9 @@ export default defineConfig({
         },
       },
     },
+  },
+  server: {
+    port: 3000,
   },
   base: "/",
 });

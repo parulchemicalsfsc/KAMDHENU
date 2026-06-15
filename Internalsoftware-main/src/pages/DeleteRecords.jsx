@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, deleteDoc, doc, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../firebase";
 import Navbar from '../components/Navbar';
 import logo from '../assets/logo.png';
@@ -19,7 +19,7 @@ export default function DeleteRecords() {
     async function fetchRecords() {
       setLoading(true);
       try {
-        const q = query(collection(db, "fieldOfficerForms"), orderBy("createdAt", "desc"));
+        const q = query(collection(db, "fieldOfficerForms"), orderBy("createdAt", "desc"), limit(100));
         const querySnapshot = await getDocs(q);
         const data = [];
         querySnapshot.forEach((docSnap) => {

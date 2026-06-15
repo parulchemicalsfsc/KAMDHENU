@@ -392,12 +392,101 @@ export default function HistoryPage() {
   );
 }
 
-// ── ReportCard component (unchanged) ─────────────────────────────────────────
+// ── ReportCard component ───────────────────────────────────────────────────
 function ReportCard({ report }) {
   const statusColors = {
     'COMPLETED': 'bg-[#E8F5E9] text-[#2E7D32]',
     'IN REVIEW': 'bg-[#E8EAF6] text-[#3F51B5]',
     'PENDING': 'bg-[#E8EAF6] text-[#3F51B5]'
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const docPdf = new jsPDF();
+      docPdf.setFont('helvetica');
+
+      const isFieldReport = report.reportId.startsWith('#RF-');
+
+      if (isFieldReport) {
+        // ── Daily Form Layout ──
+        docPdf.setFontSize(16);
+        docPdf.text('Daily Form Data', 14, 18);
+        docPdf.setFontSize(11);
+        docPdf.text(`Officer: ${report.officerName || '-'} | Date: ${report.date || '-'}`, 14, 28);
+        docPdf.text(`Working Type: ${report.workingType || '-'} | KMs: ${report.kms || '-'}`, 14, 36);
+        docPdf.text(`Punch In: ${report.punchIn || '-'} | Punch Out: ${report.punchOut || '-'} | Hours: ${report.hours || '-'}`, 14, 44);
+        docPdf.text(`Entry By: ${report.entryBy || '-'}`, 14, 52);
+        docPdf.text(`Reviewer: ${report.reviewer || '-'}`, 14, 60);
+        docPdf.text(`Reviewer Comment: ${report.reviewerComment || '-'}`, 14, 68);
+        docPdf.text('Visited Locations:', 14, 78);
+        (report.locations || []).forEach((loc, i) => {
+          if (loc) docPdf.text(`- ${loc}`, 20, 86 + i * 7);
+        });
+        let y = 86 + (report.locations?.length || 0) * 7 + 6;
+        docPdf.text('Customers:', 14, y); y += 6;
+        (report.customers || []).forEach((c, i) => {
+          if (c.name) {
+            docPdf.text(`${i + 1}. ${c.name} (${c.type || ''})`, 18, y); y += 6;
+            if (c.address) { docPdf.text(`Address: ${c.address}`, 22, y); y += 6; }
+            if (c.phone)   { docPdf.text(`Phone: ${c.phone}`,   22, y); y += 6; }
+            if (c.remark)  { docPdf.text(`Remark: ${c.remark}`, 22, y); y += 6; }
+            (c.orders || []).forEach(o => {
+              if (o.packaging && o.quantity) {
+                docPdf.text(`Order: ${o.packaging} x ${o.quantity}`, 26, y); y += 6;
+              }
+            });
+            y += 2;
+          }
+        });
+        y += 4;
+        docPdf.text('Notes:', 14, y);    y += 6;
+        docPdf.text(report.notes   || '-', 18, y); y += 8;
+        docPdf.text('Remarks:', 14, y);  y += 6;
+        docPdf.text(report.remarks || '-', 18, y); y += 8;
+        docPdf.text('Expenses:', 14, y); y += 6;
+        const exp = report.expenses || { food: 0, fuel: 0, total: 0 };
+        docPdf.text(`Food Allowance: ₹${exp.food} | Fuel: ₹${exp.fuel} | Total: ₹${exp.total}`, 18, y);
+        docPdf.save(`DailyForm_${report.officerName || 'data'}_${report.date || ''}.pdf`);
+      } else {
+        // ── Demo Sales Layout ──
+        let y = 10;
+        docPdf.setFontSize(16);
+        docPdf.text("Demo Sales Report", 14, y);
+        y += 10;
+        docPdf.setFontSize(11);
+        docPdf.text(`Demo: ${report.village || report.demoName || 'Demo Site'}`, 14, y); y += 7;
+        docPdf.text(`Date: ${report.date || "-"}`, 14, y); y += 7;
+        docPdf.text(`Village: ${report.village || "-"}`, 14, y); y += 7;
+        docPdf.text(`Taluka: ${report.taluka || "-"}`, 14, y); y += 7;
+        docPdf.text(`Mantri: ${report.mantri || "-"}`, 14, y); y += 7;
+        docPdf.text(`Total Milk: ${report.totalMilk || "-"}`, 14, y); y += 7;
+        docPdf.text(`Active Sabhasad: ${report.activeSabhasad || "-"}`, 14, y); y += 7;
+        docPdf.text(`Team Members: ${report.teamMembers || "-"}`, 14, y); y += 7;
+        docPdf.text(`Entry By: ${report.entryBy || "-"}`, 14, y); y += 7;
+        docPdf.text(`Demo Remarks: ${report.demoRemarks || "-"}`, 14, y); y += 10;
+
+        if ((report.customers || []).length > 0 && typeof docPdf.autoTable === 'function') {
+          docPdf.setFontSize(13);
+          docPdf.text("Customers", 14, y); y += 4;
+          docPdf.autoTable({
+            startY: y,
+            head: [["Name", "Code", "Mobile", "Packaging", "Qty", "Remarks"]],
+            body: (report.customers || []).map(c => [c.name, c.code, c.mobile, c.orderPackaging || c.packaging, c.orderQty || c.quantity, c.remarks]),
+            theme: 'grid',
+            styles: { fontSize: 10 },
+            margin: { left: 14, right: 14 },
+          });
+          y = docPdf.lastAutoTable.finalY + 6;
+        }
+        docPdf.save(`DemoSales_${report.date || 'export'}.pdf`);
+      }
+      toast.success('PDF downloaded successfully! 📄');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to download PDF. Please try again.');
+    }
   };
 
   return (
@@ -436,7 +525,7 @@ function ReportCard({ report }) {
             </svg>
           </button>
         </div>
-        <button className="w-auto flex items-center gap-2.5 px-6 py-3 bg-[#E8EAF6] text-[#3F51B5] rounded-xl text-[13px] font-black hover:bg-[#D1D5DB] transition-all duration-200 shadow-sm active:scale-95 group/btn">
+        <button onClick={handleDownloadPDF} className="w-auto flex items-center gap-2.5 px-6 py-3 bg-[#E8EAF6] text-[#3F51B5] rounded-xl text-[13px] font-black hover:bg-[#D1D5DB] transition-all duration-200 shadow-sm active:scale-95 group/btn">
           <svg className="w-4.5 h-4.5 transition-transform group-hover/btn:-translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>

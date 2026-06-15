@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { db } from '../firebase';
 import { collection, addDoc } from 'firebase/firestore';
-import ExcelJS from 'exceljs';
 import Navbar from '../components/Navbar';
 import '../style/form.css';
 import { getPackagingNames } from '../config/packagingConfig';
@@ -85,6 +84,7 @@ const RoutePlanner = () => {
     reader.onload = async (evt) => {
       try {
         const arrayBuffer = evt.target.result;
+        const ExcelJS = await import('exceljs');
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(arrayBuffer);
         const worksheet = workbook.worksheets[0];

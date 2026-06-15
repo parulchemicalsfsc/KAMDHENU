@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { toast } from 'react-toastify';
-import jsPDF from "jspdf";
 import { db } from "../firebase";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
 import Navbar from "../components/Navbar";
@@ -61,7 +60,8 @@ const handleParticipantChange = (e) => {
     toast.success('Minutes of Meeting saved! ✓');
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
+    const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF();
     doc.setFontSize(14);
     doc.text("Minutes of Meeting", 20, 20);

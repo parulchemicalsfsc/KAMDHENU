@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
 import notoSansGujarati from "../fonts/NotoSansGujarati-Regular.js";
 import { saveAs } from "file-saver";
 import {
@@ -16,6 +14,8 @@ import {
   onSnapshot,
   getDoc,
   setDoc,
+  deleteDoc,
+  updateDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import {
@@ -28,8 +28,6 @@ import Navbar from "../components/Navbar";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import "../style/form.css";
 import { toast } from "react-toastify";
-import { deleteDoc, updateDoc } from "firebase/firestore";
-import ExcelJS from "exceljs";
 import { VillageSelector } from "../components/stock/VillageSelector";
 import {
   PACKAGING_DATA,
@@ -1335,6 +1333,7 @@ const DemoSalesList = () => {
 
     try {
       const arrayBuffer = await file.arrayBuffer();
+      const ExcelJS = await import("exceljs");
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(arrayBuffer);
       const worksheet = workbook.worksheets[0];
@@ -1729,6 +1728,7 @@ const DemoSalesList = () => {
         toast.error("No customers to export");
         return;
       }
+      const ExcelJS = await import("exceljs");
 
       const resolvedVillage =
         demoInfo.village ||
@@ -1863,6 +1863,7 @@ const DemoSalesList = () => {
         toast.error("❌ No PAVTI customers found for Mantri report");
         return;
       }
+      const ExcelJS = await import("exceljs");
 
       const resolvedVillage =
         demoInfo.village ||
@@ -1977,8 +1978,10 @@ const DemoSalesList = () => {
       toast.error("❌ Excel export failed: " + (err.message || err));
     }
   };
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     try {
+      const { jsPDF } = await import("jspdf");
+      await import("jspdf-autotable");
       const doc = new jsPDF();
 
       if (
