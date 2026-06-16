@@ -34,114 +34,112 @@ export default function App() {
   return (
     <>
       <Suspense fallback={<PageLoader />}>
-      <Routes>
-        <Route path="/login" element={<Login />} />
+        <Routes>
+          <Route path="/login" element={<Login />} />
 
-        {/* Open routes accessible to all authenticated users */}
-        <Route
-          path="/member-page"
-          element={
-            <RequireAuth>
-              <MemberPage />
-            </RequireAuth>
-          }
-        />
+          {/* Open routes accessible to all authenticated users */}
+          <Route
+            path="/member-page"
+            element={
+              <RequireAuth>
+                <MemberPage />
+              </RequireAuth>
+            }
+          />
 
-        <Route
-          path="/"
-          element={
-            <RequireAuth>
-              <Home />
-            </RequireAuth>
-          }
-        />
+          <Route
+            path="/"
+            element={
+              <RequireAuth>
+                <Home />
+              </RequireAuth>
+            }
+          />
 
-        <Route
-          path="/route-planner"
-          element={
-            <RequireAuth>
-              <RoutePlanner />
-            </RequireAuth>
-          }
-        />
+          <Route
+            path="/route-planner"
+            element={
+              <RequireAuth>
+                <RoutePlanner />
+              </RequireAuth>
+            }
+          />
 
-        <Route
-          path="/view-route"
-          element={
-            <RequireAuth>
-              <ViewRoute />
-            </RequireAuth>
-          }
-        />
+          <Route
+            path="/view-route"
+            element={
+              <RequireAuth>
+                <ViewRoute />
+              </RequireAuth>
+            }
+          />
 
-        <Route
-          path="/stock-dashboard"
-          element={
-            <RequireAuth>
-              <StockDashboard />
-            </RequireAuth>
-          }
-        />
+          <Route
+            path="/stock-dashboard"
+            element={
+              <RequireAuth>
+                <StockDashboard />
+              </RequireAuth>
+            }
+          />
 
-        <Route
-          path="/demo-sales-list"
-          element={
-            <RequireRole
-              allowedRoles={["admin", "manager", "user", "field_officer"]}
-            >
-              <DemoSalesList />
-            </RequireRole>
-          }
-        />
+          <Route
+            path="/demo-sales-list"
+            element={
+              <RequireAuth>
+                <DemoSalesList />
+              </RequireAuth>
+            }
+          />
 
-        <Route
-          path="/mom-generator"
-          element={
-            <RequireAuth>
-              <MoMForm />
-            </RequireAuth>
-          }
-        />
+          <Route
+            path="/mom-generator"
+            element={
+              <RequireAuth>
+                <MoMForm />
+              </RequireAuth>
+            }
+          />
 
-        {/* Role-guarded routes */}
-        <Route
-          path="/form"
-          element={
-            <RequireRole allowedRoles={["admin", "manager", "field_officer"]}>
-              <FieldOfficerForm />
-            </RequireRole>
-          }
-        />
+          {/* Role-guarded routes */}
+          <Route
+            path="/form"
+            element={
+              <RequireRole allowedRoles={["admin", "manager", "field_officer"]}>
+                <FieldOfficerForm />
+              </RequireRole>
+            }
+          />
 
-        <Route
-          path="/history"
-          element={
-            <RequireRole checkHistoryAccess={true}>
-              <HistoryPage />
-            </RequireRole>
-          }
-        />
+          <Route
+            path="/history"
+            element={
+              <RequireRole checkHistoryAccess={true}>
+                <HistoryPage />
+              </RequireRole>
+            }
+          />
 
-        <Route
-          path="/delete"
-          element={
-            <RequireRole allowedRoles={["admin"]}>
-              <DeleteRecords />
-            </RequireRole>
-          }
-        />
+          <Route
+            path="/delete"
+            element={
+              <RequireRole allowedRoles={["admin"]}>
+                <DeleteRecords />
+              </RequireRole>
+            }
+          />
 
-        <Route
-          path="/admin-panel"
-          element={
-            <RequireRole allowedRoles={["admin"]}>
-              <AdminPanel />
-            </RequireRole>
-          }
-        />
+          <Route
+            path="/admin-panel"
+            element={
+              <RequireRole allowedRoles={["admin"]}>
+                <AdminPanel />
+              </RequireRole>
+            }
+          />
 
-        <Route path="*" element={<div>404 Not Found</div>} />
-      </Routes>
+          <Route path="*" element={<div>404 Not Found</div>} />
+        </Routes>
       </Suspense>
 
       <OfflineBanner />

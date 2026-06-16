@@ -29,6 +29,7 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import "../style/form.css";
 import { toast } from "react-toastify";
 import { VillageSelector } from "../components/stock/VillageSelector";
+import { startDemoAsManager } from "../services/userService";
 import {
   PACKAGING_DATA,
   getPriceByName,
@@ -245,8 +246,14 @@ const DemoSalesList = () => {
   const [lastVillageId, setLastVillageId] = useState(null);
   const [lastVillageName, setLastVillageName] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
-  const nextStep = () => { window.scrollTo({top: 0, behavior: 'smooth'}); setCurrentStep(prev => Math.min(prev + 1, 4)); };
-  const prevStep = () => { window.scrollTo({top: 0, behavior: 'smooth'}); setCurrentStep(prev => Math.max(prev - 1, 1)); };
+  const nextStep = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setCurrentStep((prev) => Math.min(prev + 1, 4));
+  };
+  const prevStep = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
+  };
 
   // Get current user email from auth, load last village, and cache user Firestore doc ID (Issue 3 fix)
   useEffect(() => {
@@ -882,16 +889,39 @@ const DemoSalesList = () => {
 
       setDemoId(docRef.id);
 
-      // Issue 3 fix: Use cached currentUserDocId instead of querying the users collection
+      // Ensure the current user is elevated to Manager when a demo starts.
       if (currentUserDocId) {
-        await updateDoc(doc(db, "users", currentUserDocId), {
-          role: "manager",
-        });
+        await startDemoAsManager(currentUserDocId);
         toast.success(
           "Demo started! You are now the Manager for this session.",
         );
       } else {
-        toast.success("Demo started!");
+        // Fallback: resolve the user's Firestore document ID at runtime
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+        if (currentUser?.email) {
+          const normalizedEmail = currentUser.email.trim().toLowerCase();
+          const q = query(
+            collection(db, "users"),
+            where(
+              "email",
+              "in",
+              [normalizedEmail, currentUser.email.trim()].filter(Boolean),
+            ),
+          );
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const userDoc = snap.docs[0];
+            await startDemoAsManager(userDoc.id);
+            toast.success(
+              "Demo started! You are now the Manager for this session.",
+            );
+          } else {
+            toast.success("Demo started!");
+          }
+        } else {
+          toast.success("Demo started!");
+        }
       }
     } catch (err) {
       console.error("Error starting demo:", err);
@@ -1297,7 +1327,10 @@ const DemoSalesList = () => {
       return;
     }
 
-    const toastId = toast.info("⏳ Fetching location...", { autoClose: false, isLoading: true });
+    const toastId = toast.info("⏳ Fetching location...", {
+      autoClose: false,
+      isLoading: true,
+    });
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -1993,7 +2026,11 @@ const DemoSalesList = () => {
           "NotoSansGujarati-Regular.ttf",
           notoSansGujarati.fontData,
         );
-        doc.addFont("NotoSansGujarati-Regular.ttf", "NotoSansGujarati", "normal");
+        doc.addFont(
+          "NotoSansGujarati-Regular.ttf",
+          "NotoSansGujarati",
+          "normal",
+        );
       }
 
       let y = 10;
@@ -2344,237 +2381,284 @@ ${paymentLines || "—"}
           style={{ width: "100%" }}
         >
           {/* Progress Indicator */}
-          <div style={{ padding: "16px 24px", background: "#fff", borderBottom: "1px solid #e2e8f0" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0d6efd", textTransform: "uppercase" }}>Step {currentStep} of 4</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0d6efd" }}>{currentStep * 25}% Complete</span>
+          <div
+            style={{
+              padding: "16px 24px",
+              background: "#fff",
+              borderBottom: "1px solid #e2e8f0",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "8px",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "0.85rem",
+                  fontWeight: 700,
+                  color: "#0d6efd",
+                  textTransform: "uppercase",
+                }}
+              >
+                Step {currentStep} of 4
+              </span>
+              <span
+                style={{
+                  fontSize: "0.85rem",
+                  fontWeight: 700,
+                  color: "#0d6efd",
+                }}
+              >
+                {currentStep * 25}% Complete
+              </span>
             </div>
-            <div style={{ height: "6px", background: "#e9ecef", borderRadius: "3px", overflow: "hidden" }}>
-              <div style={{ width: `${currentStep * 25}%`, height: "100%", background: "#0d6efd", transition: "width 0.3s ease" }} />
+            <div
+              style={{
+                height: "6px",
+                background: "#e9ecef",
+                borderRadius: "3px",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${currentStep * 25}%`,
+                  height: "100%",
+                  background: "#0d6efd",
+                  transition: "width 0.3s ease",
+                }}
+              />
             </div>
           </div>
 
           <div style={{ padding: "24px" }}>
             {currentStep === 1 && (
               <div>
-          {/* Dairy Info */}
-          <div
-            className="section-card"
-            style={{
-              marginBottom: 24,
-              textAlign: "left",
-              borderRadius: 14,
-              boxShadow: "0 2px 12px #2563eb11",
-              background: "#fff",
-              padding: "24px 18px",
-            }}
-          >
-            <h3
-              style={{
-                margin: "0 0 18px 0",
-                color: "#2563eb",
-                fontWeight: 700,
-                fontSize: "1.2rem",
-              }}
-            >
-              Dairy Visit Info
-            </h3>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                gap: 18,
-              }}
-            >
-              {/* Scheme selection moved into Packaging select (1+1 combos shown there) */}
-            </div>
-
-            <div>
-              <label>Date*</label>
-              <input
-                type="date"
-                name="date"
-                value={demoInfo.date}
-                onChange={handleDemoInfoChange}
-              />
-            </div>
-
-            {/* Village Selection with Search */}
-            <VillageSelector
-              villageOptions={villageOptions}
-              selectedVillageId={selectedVillageId}
-              onVillageChange={(id) => {
-                setSelectedVillageId(id);
-                const found = villageOptions.find((v) => v.id === id);
-                const villageName = found ? found.name : "";
-                setDemoInfo((prev) => ({ ...prev, village: villageName }));
-
-                // Save last village to Firebase
-                const auth = getAuth();
-                const currentUser = auth.currentUser;
-                if (currentUser && id) {
-                  setDoc(
-                    doc(db, "userPreferences", currentUser.uid),
-                    {
-                      lastVillageId: id,
-                      lastVillageName: villageName,
-                      lastUpdated: serverTimestamp(),
-                    },
-                    { merge: true },
-                  ).catch((err) =>
-                    console.error("Error saving last village:", err),
-                  );
-
-                  setLastVillageId(id);
-                  setLastVillageName(villageName);
-                }
-              }}
-              label="Village*"
-              showLabel={true}
-            />
-
-            {/* LAST VILLAGE ADDED */}
-            <div
-              style={{
-                gridColumn: "1 / -1",
-                marginTop: 8,
-                padding: "6px 0",
-                textAlign: "center",
-                fontSize: "0.8em",
-              }}
-            >
-              {lastVillageId && lastVillageName ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedVillageId(lastVillageId);
-                    setDemoInfo((prev) => ({
-                      ...prev,
-                      village: lastVillageName,
-                    }));
-                  }}
-                  style={{
-                    background: "transparent",
-                    color: "#9ca3af",
-                    border: "1px solid #e5e7eb",
-                    padding: "4px 8px",
-                    borderRadius: 4,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    fontSize: "0.8em",
-                    transition: "all 0.2s",
-                  }}
-                  onMouseOver={(e) => {
-                    e.target.style.color = "#6366f1";
-                    e.target.style.borderColor = "#6366f1";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.color = "#9ca3af";
-                    e.target.style.borderColor = "#e5e7eb";
-                  }}
-                >
-                  ⏰ Last: {lastVillageName}
-                </button>
-              ) : null}
-            </div>
-
-            <div>
-              {" "}
-              <div>
-                <label>Mantri*</label>
-                <input
-                  name="mantri"
-                  value={demoInfo.mantri}
-                  onChange={handleDemoInfoChange}
-                />
-              </div>
-              <div>
-                <label>Total Milk</label>
-                <input
-                  name="totalMilk"
-                  value={demoInfo.totalMilk}
-                  onChange={handleDemoInfoChange}
-                />
-              </div>
-              <div>
-                <label>Active Sabhasad</label>
-                <input
-                  name="activeSabhasad"
-                  value={demoInfo.activeSabhasad}
-                  onChange={handleDemoInfoChange}
-                />
-              </div>
-              <div>
-                <label>Team Members Went to Demo</label>
-                <input
-                  name="teamMembers"
-                  value={demoInfo.teamMembers}
-                  onChange={handleDemoInfoChange}
-                  placeholder="Comma separated names"
-                />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label>Entry Made By</label>
-                <input
-                  name="entryBy"
-                  value={demoInfo.entryBy}
-                  onChange={handleDemoInfoChange} // optional: allow manual override
-                />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label>Demo Remarks</label>
-                <textarea
-                  name="demoRemarks"
-                  value={demoInfo.demoRemarks}
-                  onChange={handleDemoInfoChange}
-                  rows={2}
-                  style={{
-                    width: "100%",
-                    borderRadius: 8,
-                    padding: 8,
-                    border: "1.5px solid #b6c7e6",
-                    fontFamily: "inherit",
-                  }}
-                  placeholder="Any remarks about this demo..."
-                />
-              </div>
-              <button
-                type="button"
-                onClick={startDemo}
-                style={{
-                  marginTop: 16,
-                  background: "#2563eb", // blue
-                  color: "#fff",
-                  padding: "10px 18px",
-                  border: "none",
-                  borderRadius: 8,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "background 0.2s",
-                }}
-              >
-                Start Demo
-              </button>
-              {/* ========== DEMO LIVE SCORE CARD ========== */}
-              {demoId && (
+                {/* Dairy Info */}
                 <div
+                  className="section-card"
                   style={{
-                    marginTop: 24,
                     marginBottom: 24,
-                    textAlign: "center",
+                    textAlign: "left",
                     borderRadius: 14,
-                    boxShadow: "0 8px 32px rgba(37, 99, 235, 0.3)",
-                    background:
-                      "linear-gradient(135deg, #fff 0%, #f0f9ff 100%)",
-                    padding: "24px 20px",
-                    border: "3px solid #2563eb",
-                    maxWidth: 900,
-                    marginLeft: "auto",
-                    marginRight: "auto",
-                    animation: "slideDown 0.5s ease-out",
+                    boxShadow: "0 2px 12px #2563eb11",
+                    background: "#fff",
+                    padding: "24px 18px",
                   }}
                 >
-                  <style>{`
+                  <h3
+                    style={{
+                      margin: "0 0 18px 0",
+                      color: "#2563eb",
+                      fontWeight: 700,
+                      fontSize: "1.2rem",
+                    }}
+                  >
+                    Dairy Visit Info
+                  </h3>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(180px, 1fr))",
+                      gap: 18,
+                    }}
+                  >
+                    {/* Scheme selection moved into Packaging select (1+1 combos shown there) */}
+                  </div>
+
+                  <div>
+                    <label>Date*</label>
+                    <input
+                      type="date"
+                      name="date"
+                      value={demoInfo.date}
+                      onChange={handleDemoInfoChange}
+                    />
+                  </div>
+
+                  {/* Village Selection with Search */}
+                  <VillageSelector
+                    villageOptions={villageOptions}
+                    selectedVillageId={selectedVillageId}
+                    onVillageChange={(id) => {
+                      setSelectedVillageId(id);
+                      const found = villageOptions.find((v) => v.id === id);
+                      const villageName = found ? found.name : "";
+                      setDemoInfo((prev) => ({
+                        ...prev,
+                        village: villageName,
+                      }));
+
+                      // Save last village to Firebase
+                      const auth = getAuth();
+                      const currentUser = auth.currentUser;
+                      if (currentUser && id) {
+                        setDoc(
+                          doc(db, "userPreferences", currentUser.uid),
+                          {
+                            lastVillageId: id,
+                            lastVillageName: villageName,
+                            lastUpdated: serverTimestamp(),
+                          },
+                          { merge: true },
+                        ).catch((err) =>
+                          console.error("Error saving last village:", err),
+                        );
+
+                        setLastVillageId(id);
+                        setLastVillageName(villageName);
+                      }
+                    }}
+                    label="Village*"
+                    showLabel={true}
+                  />
+
+                  {/* LAST VILLAGE ADDED */}
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      marginTop: 8,
+                      padding: "6px 0",
+                      textAlign: "center",
+                      fontSize: "0.8em",
+                    }}
+                  >
+                    {lastVillageId && lastVillageName ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedVillageId(lastVillageId);
+                          setDemoInfo((prev) => ({
+                            ...prev,
+                            village: lastVillageName,
+                          }));
+                        }}
+                        style={{
+                          background: "transparent",
+                          color: "#9ca3af",
+                          border: "1px solid #e5e7eb",
+                          padding: "4px 8px",
+                          borderRadius: 4,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          fontSize: "0.8em",
+                          transition: "all 0.2s",
+                        }}
+                        onMouseOver={(e) => {
+                          e.target.style.color = "#6366f1";
+                          e.target.style.borderColor = "#6366f1";
+                        }}
+                        onMouseOut={(e) => {
+                          e.target.style.color = "#9ca3af";
+                          e.target.style.borderColor = "#e5e7eb";
+                        }}
+                      >
+                        ⏰ Last: {lastVillageName}
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    {" "}
+                    <div>
+                      <label>Mantri*</label>
+                      <input
+                        name="mantri"
+                        value={demoInfo.mantri}
+                        onChange={handleDemoInfoChange}
+                      />
+                    </div>
+                    <div>
+                      <label>Total Milk</label>
+                      <input
+                        name="totalMilk"
+                        value={demoInfo.totalMilk}
+                        onChange={handleDemoInfoChange}
+                      />
+                    </div>
+                    <div>
+                      <label>Active Sabhasad</label>
+                      <input
+                        name="activeSabhasad"
+                        value={demoInfo.activeSabhasad}
+                        onChange={handleDemoInfoChange}
+                      />
+                    </div>
+                    <div>
+                      <label>Team Members Went to Demo</label>
+                      <input
+                        name="teamMembers"
+                        value={demoInfo.teamMembers}
+                        onChange={handleDemoInfoChange}
+                        placeholder="Comma separated names"
+                      />
+                    </div>
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label>Entry Made By</label>
+                      <input
+                        name="entryBy"
+                        value={demoInfo.entryBy}
+                        onChange={handleDemoInfoChange} // optional: allow manual override
+                      />
+                    </div>
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label>Demo Remarks</label>
+                      <textarea
+                        name="demoRemarks"
+                        value={demoInfo.demoRemarks}
+                        onChange={handleDemoInfoChange}
+                        rows={2}
+                        style={{
+                          width: "100%",
+                          borderRadius: 8,
+                          padding: 8,
+                          border: "1.5px solid #b6c7e6",
+                          fontFamily: "inherit",
+                        }}
+                        placeholder="Any remarks about this demo..."
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={startDemo}
+                      style={{
+                        marginTop: 16,
+                        background: "#2563eb", // blue
+                        color: "#fff",
+                        padding: "10px 18px",
+                        border: "none",
+                        borderRadius: 8,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        transition: "background 0.2s",
+                      }}
+                    >
+                      Start Demo
+                    </button>
+                    {/* ========== DEMO LIVE SCORE CARD ========== */}
+                    {demoId && (
+                      <div
+                        style={{
+                          marginTop: 24,
+                          marginBottom: 24,
+                          textAlign: "center",
+                          borderRadius: 14,
+                          boxShadow: "0 8px 32px rgba(37, 99, 235, 0.3)",
+                          background:
+                            "linear-gradient(135deg, #fff 0%, #f0f9ff 100%)",
+                          padding: "24px 20px",
+                          border: "3px solid #2563eb",
+                          maxWidth: 900,
+                          marginLeft: "auto",
+                          marginRight: "auto",
+                          animation: "slideDown 0.5s ease-out",
+                        }}
+                      >
+                        <style>{`
               @keyframes slideDown {
                 from {
                   opacity: 0;
@@ -2587,1159 +2671,1297 @@ ${paymentLines || "—"}
               }
             `}</style>
 
-                  {/* Title */}
-                  <h3
-                    style={{
-                      margin: "0 0 20px 0",
-                      color: "#2563eb",
-                      fontWeight: 900,
-                      fontSize: "1.4rem",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    🎯 LIVE DEMO SCORE
-                  </h3>
+                        {/* Title */}
+                        <h3
+                          style={{
+                            margin: "0 0 20px 0",
+                            color: "#2563eb",
+                            fontWeight: 900,
+                            fontSize: "1.4rem",
+                            letterSpacing: "0.05em",
+                          }}
+                        >
+                          🎯 LIVE DEMO SCORE
+                        </h3>
 
-                  {/* Score Cards Container */}
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "repeat(auto-fit, minmax(140px, 1fr))",
-                      gap: 16,
-                      padding: "0 12px",
-                    }}
-                  >
-                    {/* Total Customers Card */}
-                    <div
-                      style={{
-                        background:
-                          "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
-                        padding: "20px 16px",
-                        borderRadius: 12,
-                        color: "#fff",
-                        boxShadow: "0 4px 16px rgba(37, 99, 235, 0.25)",
-                        border: "2px solid rgba(255,255,255,0.3)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: "0.9em",
-                          opacity: 0.95,
-                          marginBottom: 8,
-                        }}
-                      >
-                        👥 CUSTOMERS
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "2.4rem",
-                          fontWeight: 900,
-                          letterSpacing: "-0.02em",
-                        }}
-                      >
-                        {customers.length}
-                      </div>
-                    </div>
+                        {/* Score Cards Container */}
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns:
+                              "repeat(auto-fit, minmax(140px, 1fr))",
+                            gap: 16,
+                            padding: "0 12px",
+                          }}
+                        >
+                          {/* Total Customers Card */}
+                          <div
+                            style={{
+                              background:
+                                "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+                              padding: "20px 16px",
+                              borderRadius: 12,
+                              color: "#fff",
+                              boxShadow: "0 4px 16px rgba(37, 99, 235, 0.25)",
+                              border: "2px solid rgba(255,255,255,0.3)",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: "0.9em",
+                                opacity: 0.95,
+                                marginBottom: 8,
+                              }}
+                            >
+                              👥 CUSTOMERS
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "2.4rem",
+                                fontWeight: 900,
+                                letterSpacing: "-0.02em",
+                              }}
+                            >
+                              {customers.length}
+                            </div>
+                          </div>
 
-                    {/* Total Litres Card */}
-                    <div
-                      style={{
-                        background:
-                          "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                        padding: "20px 16px",
-                        borderRadius: 12,
-                        color: "#fff",
-                        boxShadow: "0 4px 16px rgba(16, 185, 129, 0.25)",
-                        border: "2px solid rgba(255,255,255,0.3)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: "0.9em",
-                          opacity: 0.95,
-                          marginBottom: 8,
-                        }}
-                      >
-                        📊 LITRES
+                          {/* Total Litres Card */}
+                          <div
+                            style={{
+                              background:
+                                "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                              padding: "20px 16px",
+                              borderRadius: 12,
+                              color: "#fff",
+                              boxShadow: "0 4px 16px rgba(16, 185, 129, 0.25)",
+                              border: "2px solid rgba(255,255,255,0.3)",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: "0.9em",
+                                opacity: 0.95,
+                                marginBottom: 8,
+                              }}
+                            >
+                              📊 LITRES
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "2.4rem",
+                                fontWeight: 900,
+                                letterSpacing: "-0.02em",
+                              }}
+                            >
+                              {grandTotalLitres}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Real-time status */}
+                        <div
+                          style={{
+                            marginTop: 16,
+                            fontSize: "0.85em",
+                            color: "#059669",
+                            fontWeight: 600,
+                            letterSpacing: "0.05em",
+                          }}
+                        >
+                          🔴 LIVE — Updates in real-time
+                        </div>
                       </div>
-                      <div
-                        style={{
-                          fontSize: "2.4rem",
-                          fontWeight: 900,
-                          letterSpacing: "-0.02em",
-                        }}
-                      >
-                        {grandTotalLitres}
-                      </div>
-                    </div>
+                    )}
                   </div>
-
-                  {/* Real-time status */}
                   <div
                     style={{
-                      marginTop: 16,
-                      fontSize: "0.85em",
-                      color: "#059669",
-                      fontWeight: 600,
-                      letterSpacing: "0.05em",
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      marginTop: 24,
                     }}
                   >
-                    🔴 LIVE — Updates in real-time
+                    <button
+                      type="button"
+                      onClick={nextStep}
+                      style={{
+                        background: "#0d6efd",
+                        color: "#fff",
+                        padding: "12px 24px",
+                        borderRadius: 8,
+                        fontWeight: 600,
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: "16px",
+                      }}
+                    >
+                      Save & Continue ➔
+                    </button>
                   </div>
                 </div>
-              )}
               </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}>
-                <button type="button" onClick={nextStep} style={{ background: "#0d6efd", color: "#fff", padding: "12px 24px", borderRadius: 8, fontWeight: 600, border: "none", cursor: "pointer", fontSize: "16px" }}>Save & Continue ➔</button>
-              </div>
-            </div>
-            </div>
             )}
 
             {currentStep === 2 && (
               <div>
-              {/* ========== STOCK TAKEN TO VILLAGE SECTION ========== */}
-              <div
-                className="section-card"
-                style={{
-                  marginTop: 24,
-                  marginBottom: 24,
-                  textAlign: "left",
-                  borderRadius: 14,
-                  boxShadow: "0 4px 24px #2563eb33",
-                  background:
-                    "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
-                  padding: "0",
-                  border: "3px solid #0284c7",
-                  maxWidth: 900,
-                  marginLeft: "auto",
-                  marginRight: "auto",
-                }}
-              >
-                {/* Header with gradient */}
+                {/* ========== STOCK TAKEN TO VILLAGE SECTION ========== */}
                 <div
+                  className="section-card"
                   style={{
-                    padding: "14px 16px 10px 16px",
+                    marginTop: 24,
+                    marginBottom: 24,
+                    textAlign: "left",
+                    borderRadius: 14,
+                    boxShadow: "0 4px 24px #2563eb33",
                     background:
-                      "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
-                    borderRadius: "11px 11px 0 0",
-                    color: "#fff",
+                      "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+                    padding: "0",
+                    border: "3px solid #0284c7",
+                    maxWidth: 900,
+                    marginLeft: "auto",
+                    marginRight: "auto",
                   }}
                 >
+                  {/* Header with gradient */}
                   <div
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: 8,
+                      padding: "14px 16px 10px 16px",
+                      background:
+                        "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+                      borderRadius: "11px 11px 0 0",
+                      color: "#fff",
                     }}
                   >
                     <div
-                      style={{ display: "flex", alignItems: "center", gap: 8 }}
-                    >
-                      <h3
-                        style={{
-                          margin: 0,
-                          fontWeight: 900,
-                          fontSize: "1.15em",
-                          letterSpacing: "0.05em",
-                        }}
-                      >
-                        📦 STOCK TAKEN
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setIsStockTakenCollapsed(!isStockTakenCollapsed)
-                        }
-                        style={{
-                          background: "rgba(255,255,255,0.2)",
-                          color: "#fff",
-                          border: "1px solid rgba(255,255,255,0.4)",
-                          padding: "4px 10px",
-                          borderRadius: 6,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          fontSize: "0.8em",
-                          transition: "all 0.2s",
-                        }}
-                        onMouseOver={(e) => {
-                          e.target.style.background = "rgba(255,255,255,0.3)";
-                        }}
-                        onMouseOut={(e) => {
-                          e.target.style.background = "rgba(255,255,255,0.2)";
-                        }}
-                      >
-                        {isStockTakenCollapsed ? "▶" : "▼"}
-                      </button>
-                    </div>
-                    {(() => {
-                      const totalQty = stockTaken.reduce(
-                        (sum, t) => sum + (Number(t.quantity) || 0),
-                        0,
-                      );
-                      return (
-                        <div
-                          style={{
-                            background: "rgba(255,255,255,0.25)",
-                            padding: "6px 12px",
-                            borderRadius: 8,
-                            fontSize: "0.9em",
-                            fontWeight: 700,
-                          }}
-                        >
-                          <span style={{ fontSize: "1.1em" }}>{totalQty}</span>
-                          <div style={{ fontSize: "0.75em", opacity: 0.9 }}>
-                            Units
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                  <p style={{ margin: 0, fontSize: "0.85em", opacity: 0.9 }}>
-                    Add packaging items for village
-                  </p>
-                </div>
-
-                {!isStockTakenCollapsed && (
-                  <>
-                    {/* Input Form Section */}
-                    <div
                       style={{
-                        padding: "10px 14px",
-                        background: "#fff",
-                        borderBottom: "1px solid #e0f2fe",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: 8,
                       }}
                     >
                       <div
                         style={{
-                          display: "grid",
-                          gridTemplateColumns:
-                            "repeat(auto-fit, minmax(150px, 1fr))",
+                          display: "flex",
+                          alignItems: "center",
                           gap: 8,
-                          alignItems: "flex-end",
                         }}
                       >
-                        <div>
-                          <label
-                            style={{
-                              fontWeight: 700,
-                              color: "#0369a1",
-                              display: "block",
-                              marginBottom: 4,
-                              fontSize: "0.9em",
-                            }}
-                          >
-                            Select Packaging Type
-                          </label>
-                          <select
-                            value={stockInput.packaging}
-                            onChange={(e) =>
-                              setStockInput({
-                                ...stockInput,
-                                packaging: e.target.value,
-                              })
-                            }
-                            style={{
-                              width: "100%",
-                              padding: "8px 10px",
-                              borderRadius: 6,
-                              border: "2px solid #bfdbfe",
-                              background: "#fff",
-                              color: "#000",
-                              fontSize: "0.9em",
-                              fontWeight: 600,
-                            }}
-                          >
-                            <option value="">-- Select Packaging --</option>
-                            {packagingNames.map((opt) => (
-                              <option key={opt} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label
-                            style={{
-                              fontWeight: 700,
-                              color: "#0369a1",
-                              display: "block",
-                              marginBottom: 4,
-                              fontSize: "0.9em",
-                            }}
-                          >
-                            Quantity
-                          </label>
-                          <input
-                            type="number"
-                            name="quantity"
-                            value={stockInput.quantity}
-                            onChange={handleStockInput}
-                            min="1"
-                            placeholder="Enter qty"
-                            style={{
-                              width: "100%",
-                              padding: "8px 10px",
-                              borderRadius: 6,
-                              border: "2px solid #bfdbfe",
-                              background: "#fff",
-                              fontSize: "0.9em",
-                              fontWeight: 600,
-                            }}
-                          />
-                        </div>
-
+                        <h3
+                          style={{
+                            margin: 0,
+                            fontWeight: 900,
+                            fontSize: "1.15em",
+                            letterSpacing: "0.05em",
+                          }}
+                        >
+                          📦 STOCK TAKEN
+                        </h3>
                         <button
                           type="button"
-                          onClick={addStock}
+                          onClick={() =>
+                            setIsStockTakenCollapsed(!isStockTakenCollapsed)
+                          }
                           style={{
-                            padding: "8px 18px",
-                            background: "#10b981",
+                            background: "rgba(255,255,255,0.2)",
                             color: "#fff",
-                            border: "none",
-                            borderRadius: 8,
-                            fontWeight: 700,
-                            fontSize: "0.9em",
+                            border: "1px solid rgba(255,255,255,0.4)",
+                            padding: "4px 10px",
+                            borderRadius: 6,
+                            fontWeight: 600,
                             cursor: "pointer",
-                            transition: "all 0.3s",
-                            boxShadow: "0 2px 8px #10b98144",
-                            width: "100%",
+                            fontSize: "0.8em",
+                            transition: "all 0.2s",
                           }}
                           onMouseOver={(e) => {
-                            e.target.style.background = "#059669";
-                            e.target.style.transform = "translateY(-2px)";
-                            e.target.style.boxShadow = "0 4px 12px #10b98155";
+                            e.target.style.background = "rgba(255,255,255,0.3)";
                           }}
                           onMouseOut={(e) => {
-                            e.target.style.background = "#10b981";
-                            e.target.style.transform = "translateY(0)";
-                            e.target.style.boxShadow = "0 2px 8px #10b98144";
+                            e.target.style.background = "rgba(255,255,255,0.2)";
                           }}
                         >
-                          ✓ ADD TO STOCK
+                          {isStockTakenCollapsed ? "▶" : "▼"}
                         </button>
                       </div>
-                    </div>
-
-                    {/* Stock Items Display */}
-                    <div style={{ padding: "10px 14px" }}>
-                      {stockTaken.length === 0 ? (
-                        <div
-                          style={{
-                            textAlign: "center",
-                            color: "#6b7280",
-                            padding: "16px 10px",
-                            fontSize: "0.9em",
-                            background: "#f8fafc",
-                            borderRadius: 6,
-                            border: "1px dashed #cbd5e1",
-                          }}
-                        >
-                          <div style={{ fontSize: "2em", marginBottom: 4 }}>
-                            📭
-                          </div>
-                          <div>
-                            No stock added yet. Add packaging and quantity above
-                            to get started.
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
+                      {(() => {
+                        const totalQty = stockTaken.reduce(
+                          (sum, t) => sum + (Number(t.quantity) || 0),
+                          0,
+                        );
+                        return (
                           <div
                             style={{
-                              display: "flex",
-                              overflowX: "auto",
-                              gap: 10,
-                              marginBottom: 12,
-                              paddingBottom: 6,
+                              background: "rgba(255,255,255,0.25)",
+                              padding: "6px 12px",
+                              borderRadius: 8,
+                              fontSize: "0.9em",
+                              fontWeight: 700,
                             }}
                           >
-                            {stockTaken.map((t, idx) => (
-                              <div
-                                key={idx}
-                                style={{
-                                  background:
-                                    "linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)",
-                                  padding: "12px",
-                                  borderRadius: 10,
-                                  border: "2px solid #06b6d4",
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                  boxShadow: "0 2px 8px #06b6d422",
-                                  minWidth: 210,
-                                  flexShrink: 0,
-                                }}
-                              >
-                                <div>
-                                  <div
-                                    style={{
-                                      fontWeight: 800,
-                                      color: "#0369a1",
-                                      fontSize: "0.95em",
-                                    }}
-                                  >
-                                    {t.packaging}
-                                  </div>
-                                  <div
-                                    style={{
-                                      color: "#0891b2",
-                                      fontSize: "0.85em",
-                                      marginTop: 2,
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    Qty: {t.quantity}
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removeStockTaken(idx)}
-                                  style={{
-                                    padding: "6px 10px",
-                                    borderRadius: 6,
-                                    background: "#ef4444",
-                                    color: "#fff",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    fontWeight: 700,
-                                    fontSize: "0.85em",
-                                    transition: "all 0.2s",
-                                    boxShadow: "0 2px 4px #ef444444",
-                                  }}
-                                  onMouseOver={(e) => {
-                                    e.target.style.background = "#dc2626";
-                                    e.target.style.transform = "scale(1.05)";
-                                  }}
-                                  onMouseOut={(e) => {
-                                    e.target.style.background = "#ef4444";
-                                    e.target.style.transform = "scale(1)";
-                                  }}
-                                >
-                                  ✕ Remove
-                                </button>
-                              </div>
-                            ))}
+                            <span style={{ fontSize: "1.1em" }}>
+                              {totalQty}
+                            </span>
+                            <div style={{ fontSize: "0.75em", opacity: 0.9 }}>
+                              Units
+                            </div>
                           </div>
+                        );
+                      })()}
+                    </div>
+                    <p style={{ margin: 0, fontSize: "0.85em", opacity: 0.9 }}>
+                      Add packaging items for village
+                    </p>
+                  </div>
 
-                          {/* Save to Village Button */}
-                          <div
-                            style={{ display: "flex", gap: 8, marginTop: 8 }}
-                          >
-                            <button
-                              type="button"
-                              onClick={saveStockToVillage}
+                  {!isStockTakenCollapsed && (
+                    <>
+                      {/* Input Form Section */}
+                      <div
+                        style={{
+                          padding: "10px 14px",
+                          background: "#fff",
+                          borderBottom: "1px solid #e0f2fe",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns:
+                              "repeat(auto-fit, minmax(150px, 1fr))",
+                            gap: 8,
+                            alignItems: "flex-end",
+                          }}
+                        >
+                          <div>
+                            <label
                               style={{
-                                flex: 1,
-                                padding: "8px 12px",
-                                background:
-                                  "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                                color: "#fff",
-                                border: "none",
-                                borderRadius: 8,
                                 fontWeight: 700,
+                                color: "#0369a1",
+                                display: "block",
+                                marginBottom: 4,
                                 fontSize: "0.9em",
-                                cursor: "pointer",
-                                transition: "all 0.3s",
-                                boxShadow: "0 4px 12px #10b98144",
-                              }}
-                              onMouseOver={(e) => {
-                                e.target.style.transform = "translateY(-2px)";
-                                e.target.style.boxShadow =
-                                  "0 6px 16px #10b98155";
-                              }}
-                              onMouseOut={(e) => {
-                                e.target.style.transform = "translateY(0)";
-                                e.target.style.boxShadow =
-                                  "0 4px 12px #10b98144";
                               }}
                             >
-                              💾 SAVE STOCK FOR VILLAGE
-                            </button>
+                              Select Packaging Type
+                            </label>
+                            <select
+                              value={stockInput.packaging}
+                              onChange={(e) =>
+                                setStockInput({
+                                  ...stockInput,
+                                  packaging: e.target.value,
+                                })
+                              }
+                              style={{
+                                width: "100%",
+                                padding: "8px 10px",
+                                borderRadius: 6,
+                                border: "2px solid #bfdbfe",
+                                background: "#fff",
+                                color: "#000",
+                                fontSize: "0.9em",
+                                fontWeight: 600,
+                              }}
+                            >
+                              <option value="">-- Select Packaging --</option>
+                              {packagingNames.map((opt) => (
+                                <option key={opt} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
                           </div>
+
+                          <div>
+                            <label
+                              style={{
+                                fontWeight: 700,
+                                color: "#0369a1",
+                                display: "block",
+                                marginBottom: 4,
+                                fontSize: "0.9em",
+                              }}
+                            >
+                              Quantity
+                            </label>
+                            <input
+                              type="number"
+                              name="quantity"
+                              value={stockInput.quantity}
+                              onChange={handleStockInput}
+                              min="1"
+                              placeholder="Enter qty"
+                              style={{
+                                width: "100%",
+                                padding: "8px 10px",
+                                borderRadius: 6,
+                                border: "2px solid #bfdbfe",
+                                background: "#fff",
+                                fontSize: "0.9em",
+                                fontWeight: 600,
+                              }}
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={addStock}
+                            style={{
+                              padding: "8px 18px",
+                              background: "#10b981",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: 8,
+                              fontWeight: 700,
+                              fontSize: "0.9em",
+                              cursor: "pointer",
+                              transition: "all 0.3s",
+                              boxShadow: "0 2px 8px #10b98144",
+                              width: "100%",
+                            }}
+                            onMouseOver={(e) => {
+                              e.target.style.background = "#059669";
+                              e.target.style.transform = "translateY(-2px)";
+                              e.target.style.boxShadow = "0 4px 12px #10b98155";
+                            }}
+                            onMouseOut={(e) => {
+                              e.target.style.background = "#10b981";
+                              e.target.style.transform = "translateY(0)";
+                              e.target.style.boxShadow = "0 2px 8px #10b98144";
+                            }}
+                          >
+                            ✓ ADD TO STOCK
+                          </button>
                         </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="form-section">
-                <label>Location</label>
-                <div
-                  style={{ display: "flex", gap: "10px", alignItems: "center" }}
-                >
-                  <button type="button" onClick={handleGetLocation}>
-                    Get Location
-                  </button>
-                  {demoInfo.latitude && demoInfo.longitude && (
-                    <span>
-                      📍 {demoInfo.latitude}, {demoInfo.longitude}
-                    </span>
+                      </div>
+
+                      {/* Stock Items Display */}
+                      <div style={{ padding: "10px 14px" }}>
+                        {stockTaken.length === 0 ? (
+                          <div
+                            style={{
+                              textAlign: "center",
+                              color: "#6b7280",
+                              padding: "16px 10px",
+                              fontSize: "0.9em",
+                              background: "#f8fafc",
+                              borderRadius: 6,
+                              border: "1px dashed #cbd5e1",
+                            }}
+                          >
+                            <div style={{ fontSize: "2em", marginBottom: 4 }}>
+                              📭
+                            </div>
+                            <div>
+                              No stock added yet. Add packaging and quantity
+                              above to get started.
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div
+                              style={{
+                                display: "flex",
+                                overflowX: "auto",
+                                gap: 10,
+                                marginBottom: 12,
+                                paddingBottom: 6,
+                              }}
+                            >
+                              {stockTaken.map((t, idx) => (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    background:
+                                      "linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)",
+                                    padding: "12px",
+                                    borderRadius: 10,
+                                    border: "2px solid #06b6d4",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    boxShadow: "0 2px 8px #06b6d422",
+                                    minWidth: 210,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  <div>
+                                    <div
+                                      style={{
+                                        fontWeight: 800,
+                                        color: "#0369a1",
+                                        fontSize: "0.95em",
+                                      }}
+                                    >
+                                      {t.packaging}
+                                    </div>
+                                    <div
+                                      style={{
+                                        color: "#0891b2",
+                                        fontSize: "0.85em",
+                                        marginTop: 2,
+                                        fontWeight: 700,
+                                      }}
+                                    >
+                                      Qty: {t.quantity}
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeStockTaken(idx)}
+                                    style={{
+                                      padding: "6px 10px",
+                                      borderRadius: 6,
+                                      background: "#ef4444",
+                                      color: "#fff",
+                                      border: "none",
+                                      cursor: "pointer",
+                                      fontWeight: 700,
+                                      fontSize: "0.85em",
+                                      transition: "all 0.2s",
+                                      boxShadow: "0 2px 4px #ef444444",
+                                    }}
+                                    onMouseOver={(e) => {
+                                      e.target.style.background = "#dc2626";
+                                      e.target.style.transform = "scale(1.05)";
+                                    }}
+                                    onMouseOut={(e) => {
+                                      e.target.style.background = "#ef4444";
+                                      e.target.style.transform = "scale(1)";
+                                    }}
+                                  >
+                                    ✕ Remove
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Save to Village Button */}
+                            <div
+                              style={{ display: "flex", gap: 8, marginTop: 8 }}
+                            >
+                              <button
+                                type="button"
+                                onClick={saveStockToVillage}
+                                style={{
+                                  flex: 1,
+                                  padding: "8px 12px",
+                                  background:
+                                    "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                                  color: "#fff",
+                                  border: "none",
+                                  borderRadius: 8,
+                                  fontWeight: 700,
+                                  fontSize: "0.9em",
+                                  cursor: "pointer",
+                                  transition: "all 0.3s",
+                                  boxShadow: "0 4px 12px #10b98144",
+                                }}
+                                onMouseOver={(e) => {
+                                  e.target.style.transform = "translateY(-2px)";
+                                  e.target.style.boxShadow =
+                                    "0 6px 16px #10b98155";
+                                }}
+                                onMouseOut={(e) => {
+                                  e.target.style.transform = "translateY(0)";
+                                  e.target.style.boxShadow =
+                                    "0 4px 12px #10b98144";
+                                }}
+                              >
+                                💾 SAVE STOCK FOR VILLAGE
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}>
-                <button type="button" onClick={prevStep} style={{ background: "#e2e8f0", color: "#1e293b", padding: "12px 24px", borderRadius: 8, fontWeight: 600, border: "none", cursor: "pointer", fontSize: "16px" }}>⬅ Previous</button>
-                <button type="button" onClick={nextStep} style={{ background: "#0d6efd", color: "#fff", padding: "12px 24px", borderRadius: 8, fontWeight: 600, border: "none", cursor: "pointer", fontSize: "16px" }}>Save & Continue ➔</button>
-              </div>
+                <div className="form-section">
+                  <label>Location</label>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "10px",
+                      alignItems: "center",
+                    }}
+                  >
+                    <button type="button" onClick={handleGetLocation}>
+                      Get Location
+                    </button>
+                    {demoInfo.latitude && demoInfo.longitude && (
+                      <span>
+                        📍 {demoInfo.latitude}, {demoInfo.longitude}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginTop: 24,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={prevStep}
+                    style={{
+                      background: "#e2e8f0",
+                      color: "#1e293b",
+                      padding: "12px 24px",
+                      borderRadius: 8,
+                      fontWeight: 600,
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                    }}
+                  >
+                    ⬅ Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    style={{
+                      background: "#0d6efd",
+                      color: "#fff",
+                      padding: "12px 24px",
+                      borderRadius: 8,
+                      fontWeight: 600,
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                    }}
+                  >
+                    Save & Continue ➔
+                  </button>
+                </div>
               </div>
             )}
 
             {currentStep === 3 && (
               <div>
-              {/* Customer Section */}
-              <div
-                ref={customerFormRef}
-                className="section-card"
-                style={{
-                  marginBottom: 24,
-                  textAlign: "left",
-                  background: "#e3eefd",
-                  border: "1.5px solid #b6c7e6",
-                  boxShadow: "0 2px 12px #2563eb22",
-                  borderRadius: 14,
-                  maxWidth: 700,
-                  marginLeft: "auto",
-                  marginRight: "auto",
-                  padding: "24px 18px",
-                }}
-              >
-                {/* File Upload Header */}
+                {/* Customer Section */}
                 <div
+                  ref={customerFormRef}
+                  className="section-card"
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 12,
-                    paddingBottom: 12,
-                    borderBottom: "2px solid #b6c7e6",
+                    marginBottom: 24,
+                    textAlign: "left",
+                    background: "#e3eefd",
+                    border: "1.5px solid #b6c7e6",
+                    boxShadow: "0 2px 12px #2563eb22",
+                    borderRadius: 14,
+                    maxWidth: 700,
+                    marginLeft: "auto",
+                    marginRight: "auto",
+                    padding: "24px 18px",
                   }}
                 >
-                  <h4
-                    style={{
-                      margin: 0,
-                      fontWeight: 700,
-                      color: "#0369a1",
-                      fontSize: "1.05em",
-                    }}
-                  >
-                    📁 Upload Customers
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setIsFileUploadCollapsed(!isFileUploadCollapsed)
-                    }
-                    style={{
-                      background: "#2563eb",
-                      color: "#fff",
-                      border: "none",
-                      padding: "4px 10px",
-                      borderRadius: 6,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      fontSize: "0.85em",
-                      transition: "all 0.2s",
-                    }}
-                    onMouseOver={(e) => (e.target.style.background = "#1d4ed8")}
-                    onMouseOut={(e) => (e.target.style.background = "#2563eb")}
-                  >
-                    {isFileUploadCollapsed ? "▶ Expand" : "▼ Collapse"}
-                  </button>
-                </div>
-
-                {/* File Upload Content */}
-                {!isFileUploadCollapsed && (
-                  <div style={{ marginBottom: 20, padding: "12px 0" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 12,
-                        alignItems: "center",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <input
-                        type="file"
-                        accept=".xlsx, .xls,.csv"
-                        onChange={handleExcelUpload}
-                      />
-                      {excelData.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={handleCancelExcelUpload}
-                          style={{
-                            padding: "5px 10px",
-                            backgroundColor: "#ff4d4f",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            fontWeight: 600,
-                            fontSize: "0.9em",
-                          }}
-                        >
-                          Cancel Upload
-                        </button>
-                      )}
-                    </div>
-                    <span style={{ color: "#6b7280", fontSize: "0.85em" }}>
-                      📝 Upload will add to existing customers
-                    </span>
-                  </div>
-                )}
-
-                {/* Search & Select customer */}
-                <div style={{ marginTop: 16, marginBottom: 12 }}>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 6,
-                      fontWeight: 600,
-                      fontSize: "0.9em",
-                      color: "#374151",
-                    }}
-                  >
-                    🔍 Search Customer:
-                  </label>
-                </div>
-                <div
-                  style={{
-                    position: "relative",
-                    width: "100%",
-                    maxWidth: "500px",
-                  }}
-                >
+                  {/* File Upload Header */}
                   <div
                     style={{
                       display: "flex",
+                      justifyContent: "space-between",
                       alignItems: "center",
-                      position: "relative",
+                      marginBottom: 12,
+                      paddingBottom: 12,
+                      borderBottom: "2px solid #b6c7e6",
                     }}
                   >
-                    <span
+                    <h4
                       style={{
-                        position: "absolute",
-                        left: 12,
-                        color: "#2563eb",
-                        fontSize: "1.2em",
+                        margin: 0,
+                        fontWeight: 700,
+                        color: "#0369a1",
+                        fontSize: "1.05em",
                       }}
                     >
-                      🔍
-                    </span>
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search customer by name, mobile, code..."
+                      📁 Upload Customers
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setIsFileUploadCollapsed(!isFileUploadCollapsed)
+                      }
                       style={{
-                        width: "100%",
-                        padding: "12px 12px 12px 40px",
-                        borderRadius: 8,
-                        border: "2px solid #e0e7ff",
-                        fontSize: "0.95em",
+                        background: "#2563eb",
+                        color: "#fff",
+                        border: "none",
+                        padding: "4px 10px",
+                        borderRadius: 6,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        fontSize: "0.85em",
                         transition: "all 0.2s",
-                        boxShadow: searchTerm
-                          ? "0 2px 8px rgba(37, 99, 235, 0.15)"
-                          : "none",
-                        borderColor: searchTerm ? "#2563eb" : "#e0e7ff",
                       }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = "#2563eb";
-                        e.target.style.boxShadow =
-                          "0 2px 8px rgba(37, 99, 235, 0.15)";
-                      }}
-                      onBlur={(e) => {
-                        if (!searchTerm) {
-                          e.target.style.borderColor = "#e0e7ff";
-                          e.target.style.boxShadow = "none";
-                        }
-                      }}
-                    />
-                    {searchTerm && (
-                      <button
-                        onClick={() => setSearchTerm("")}
-                        style={{
-                          position: "absolute",
-                          right: 12,
-                          background: "none",
-                          border: "none",
-                          fontSize: "1.1em",
-                          cursor: "pointer",
-                          color: "#9ca3af",
-                          padding: "4px 8px",
-                          transition: "color 0.2s",
-                        }}
-                        onMouseOver={(e) => (e.target.style.color = "#2563eb")}
-                        onMouseOut={(e) => (e.target.style.color = "#9ca3af")}
-                      >
-                        ✕
-                      </button>
-                    )}
+                      onMouseOver={(e) =>
+                        (e.target.style.background = "#1d4ed8")
+                      }
+                      onMouseOut={(e) =>
+                        (e.target.style.background = "#2563eb")
+                      }
+                    >
+                      {isFileUploadCollapsed ? "▶ Expand" : "▼ Collapse"}
+                    </button>
                   </div>
 
-                  {filteredCustomers.length > 0 && (
-                    <ul
-                      style={{
-                        listStyle: "none",
-                        padding: "8px 0",
-                        maxHeight: 320,
-                        overflowY: "auto",
-                        marginTop: 8,
-                        background: "#fff",
-                        borderRadius: 8,
-                        boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)",
-                        border: "1px solid #e0e7ff",
-                        position: "relative",
-                        zIndex: 20,
-                      }}
-                    >
-                      {filteredCustomers.slice(0, 6).map((cust, idx) => (
-                        <li
-                          key={idx}
-                          onClick={() => {
-                            if (!editingCustomerId) {
-                              setCustomerInput((prev) => ({
-                                ...prev,
-                                name: cust.name || "",
-                                code: cust.code || "",
-                                mobile: cust.mobile || "",
-                              }));
-                            }
-                            setSearchTerm(cust.name);
-                            setFilteredCustomers([]);
-                          }}
-                          style={{
-                            padding: "12px 16px",
-                            cursor: "pointer",
-                            borderBottom:
-                              idx < Math.min(filteredCustomers.length - 1, 5)
-                                ? "1px solid #f0f0f0"
-                                : "none",
-                            transition: "all 0.15s",
-                            background: "#fff",
-                          }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.background = "#f0f7ff";
-                            e.currentTarget.style.paddingLeft = "20px";
-                          }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.background = "#fff";
-                            e.currentTarget.style.paddingLeft = "16px";
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              gap: 8,
-                            }}
-                          >
-                            <div>
-                              <div
-                                style={{
-                                  fontWeight: 600,
-                                  color: "#1f2937",
-                                  fontSize: "0.95em",
-                                }}
-                              >
-                                📋 {cust.name}
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: "0.8em",
-                                  color: "#6b7280",
-                                  marginTop: 2,
-                                }}
-                              >
-                                📱 {cust.mobile || "N/A"}{" "}
-                                {cust.code && `• Code: ${cust.code}`}
-                              </div>
-                            </div>
-                            <div style={{ color: "#2563eb", fontSize: "1em" }}>
-                              →
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                      {filteredCustomers.length > 6 && (
-                        <li
-                          style={{
-                            padding: "8px 16px",
-                            textAlign: "center",
-                            color: "#9ca3af",
-                            fontSize: "0.85em",
-                            borderTop: "1px solid #f0f0f0",
-                          }}
-                        >
-                          ... {filteredCustomers.length - 6} more results
-                        </li>
-                      )}
-                    </ul>
-                  )}
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 14,
-                    background: "#e3eefd",
-                    padding: "12px 0",
-                    borderRadius: 8,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "repeat(auto-fit, minmax(140px, 1fr))",
-                      gap: 12,
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 120 }}>
-                      <label>Customer Name</label>
-                      <input
-                        name="name"
-                        value={customerInput.name}
-                        onChange={handleCustomerInput}
-                      />
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: 100 }}>
-                      <label>Customer Code</label>
-                      <input
-                        type="text"
-                        value={customerInput.code}
-                        onChange={(e) =>
-                          setCustomerInput({
-                            ...customerInput,
-                            code: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: 120 }}>
-                      <label>Mobile Number</label>
-                      <input
-                        type="text"
-                        value={customerInput.mobile}
-                        onChange={(e) =>
-                          setCustomerInput({
-                            ...customerInput,
-                            mobile: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: 120 }}>
-                      <label>Packaging</label>
-                      <select
-                        value={customerInput.orderPackaging}
-                        onChange={(e) =>
-                          setCustomerInput({
-                            ...customerInput,
-                            orderPackaging: e.target.value,
-                          })
-                        }
-                      >
-                        <option value="">Select Packaging</option>
-                        {packagingNames.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                        {/* 1+1 scheme options included in packaging list */}
-                        {onePlusOneSchemes.map((s) => (
-                          <option key={"scheme-" + s.key} value={s.label}>
-                            {s.label} — Offer ₹{s.offer}
-                          </option>
-                        ))}
-                      </select>
-                      {/* Show discount input when packaging selected (optional) */}
-                      {customerInput.orderPackaging && (
-                        <div style={{ marginTop: 6 }}>
-                          <label>Discount (optional)</label>
-                          <input
-                            type="number"
-                            value={customerInput.manualOffer || ""}
-                            onChange={(e) =>
-                              setCustomerInput((prev) => ({
-                                ...prev,
-                                manualOffer: e.target.value,
-                              }))
-                            }
-                            placeholder="Enter discount amount"
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: 80 }}>
-                      <label>Qty</label>
-                      <input
-                        type="number"
-                        name="orderQty"
-                        value={customerInput.orderQty}
-                        onChange={handleCustomerInput}
-                        min="1"
-                      />
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop: "10px",
-                        fontWeight: "bold",
-                        gridColumn: "1 / -1",
-                      }}
-                    >
-                      Customer Total: ₹{currentTotal}
-                    </div>
-
-                    <div
-                      style={{ flex: 2, minWidth: 120, gridColumn: "1 / -1" }}
-                    >
-                      <label>Remarks</label>
-                      <input
-                        name="remarks"
-                        value={customerInput.remarks}
-                        onChange={handleCustomerInput}
-                        style={{ fontFamily: "Noto Sans Gujarati, sans-serif" }}
-                        placeholder="ટિપ્પણી દાખલ કરો"
-                      />
-                    </div>
-
-                    <div
-                      style={{ flex: 1, minWidth: 150, gridColumn: "1 / -1" }}
-                    >
-                      <label>Payment Method</label>
+                  {/* File Upload Content */}
+                  {!isFileUploadCollapsed && (
+                    <div style={{ marginBottom: 20, padding: "12px 0" }}>
                       <div
                         style={{
                           display: "flex",
                           gap: 12,
                           alignItems: "center",
-                          marginTop: 4,
+                          marginBottom: 8,
                         }}
                       >
-                        <label
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            cursor: "pointer",
-                          }}
-                        >
-                          <input
-                            type="radio"
-                            name="paymentMethod"
-                            value="PAVTI"
-                            checked={customerInput.paymentMethod === "PAVTI"}
-                            onChange={handleCustomerInput}
-                          />
-                          <span>PAVTI</span>
-                        </label>
-                        <label
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            cursor: "pointer",
-                          }}
-                        >
-                          <input
-                            type="radio"
-                            name="paymentMethod"
-                            value="CASH"
-                            checked={customerInput.paymentMethod === "CASH"}
-                            onChange={handleCustomerInput}
-                          />
-                          <span>CASH</span>
-                        </label>
-                      </div>
-                    </div>
-
-                    <div style={{ minWidth: 180, gridColumn: "1 / -1" }}>
-                      <label>Photo</label>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 8,
-                          alignItems: "center",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <select
-                          value={photoCapture}
-                          onChange={(e) => setPhotoCapture(e.target.value)}
-                          style={{
-                            padding: "6px",
-                            borderRadius: 6,
-                            flex: 1,
-                            minWidth: 150,
-                          }}
-                        >
-                          <option value="environment">
-                            Back Camera (recommended)
-                          </option>
-                          <option value="user">Front Camera</option>
-                        </select>
                         <input
                           type="file"
-                          accept="image/*"
-                          capture={photoCapture}
-                          onChange={handleCustomerPhotoChange}
-                          style={{ flex: 1, minWidth: 150 }}
+                          accept=".xlsx, .xls,.csv"
+                          onChange={handleExcelUpload}
                         />
-                      </div>
-                      {(customerInput.photo || customerInput.photoPreview) && (
-                        <div
-                          style={{
-                            marginTop: 6,
-                            display: "flex",
-                            gap: 8,
-                            alignItems: "center",
-                          }}
-                        >
-                          <img
-                            src={
-                              customerInput.photo || customerInput.photoPreview
-                            }
-                            alt="preview"
-                            style={{
-                              width: 64,
-                              height: 64,
-                              objectFit: "cover",
-                              borderRadius: 6,
-                              border: "1px solid #ddd",
-                            }}
-                          />
+                        {excelData.length > 0 && (
                           <button
                             type="button"
-                            onClick={() => {
-                              setCustomerInput((prev) => ({
-                                ...prev,
-                                photo: "",
-                                photoPreview: "",
-                              }));
-                              toast.success("Photo removed");
-                            }}
+                            onClick={handleCancelExcelUpload}
                             style={{
-                              padding: "6px 10px",
-                              background: "#ef4444",
-                              color: "#fff",
+                              padding: "5px 10px",
+                              backgroundColor: "#ff4d4f",
+                              color: "white",
                               border: "none",
-                              borderRadius: 6,
+                              borderRadius: "4px",
                               cursor: "pointer",
-                              fontWeight: 700,
+                              fontWeight: 600,
                               fontSize: "0.9em",
-                              transition: "all 0.2s",
                             }}
-                            onMouseOver={(e) =>
-                              (e.target.style.background = "#dc2626")
-                            }
-                            onMouseOut={(e) =>
-                              (e.target.style.background = "#ef4444")
-                            }
-                            title="Delete photo"
                           >
-                            ✕ Delete
+                            Cancel Upload
                           </button>
-                          {uploadingPhoto && (
-                            <div style={{ fontSize: 11, color: "#6b7280" }}>
-                              Uploading...
-                            </div>
-                          )}
-                        </div>
-                      )}
+                        )}
+                      </div>
+                      <span style={{ color: "#6b7280", fontSize: "0.85em" }}>
+                        📝 Upload will add to existing customers
+                      </span>
                     </div>
+                  )}
 
-                    <button
-                      type="button"
-                      className="btn-outline"
+                  {/* Search & Select customer */}
+                  <div style={{ marginTop: 16, marginBottom: 12 }}>
+                    <label
                       style={{
-                        padding: "8px 8px",
-                        fontWeight: 800,
-                        fontSize: "1em",
-                        borderRadius: 8,
-                        height: "40px",
-                        background: "#2563eb",
-                        color: "#fff",
-                        border: "none",
+                        display: "block",
+                        marginBottom: 6,
+                        fontWeight: 600,
+                        fontSize: "0.9em",
+                        color: "#374151",
                       }}
                     >
-                      {" "}
-                      Send OTP
-                    </button>
-
+                      🔍 Search Customer:
+                    </label>
+                  </div>
+                  <div
+                    style={{
+                      position: "relative",
+                      width: "100%",
+                      maxWidth: "500px",
+                    }}
+                  >
                     <div
                       style={{
-                        minWidth: 120,
                         display: "flex",
-                        gap: 8,
-                        gridColumn: "1 / -1",
-                        flexWrap: "wrap",
+                        alignItems: "center",
+                        position: "relative",
                       }}
                     >
-                      <button
-                        type="button"
-                        onClick={
-                          editingCustomerId ? handleUpdateCustomer : addCustomer
-                        }
-                        disabled={uploadingPhoto}
-                        title={uploadingPhoto ? "Wait for photo upload" : ""}
-                        style={{ flex: 1, minWidth: 120 }}
+                      <span
+                        style={{
+                          position: "absolute",
+                          left: 12,
+                          color: "#2563eb",
+                          fontSize: "1.2em",
+                        }}
                       >
-                        {uploadingPhoto
-                          ? "Uploading..."
-                          : editingCustomerId
-                            ? "Update Customer"
-                            : "Add Customer"}
-                      </button>
-
-                      {editingCustomerId && (
+                        🔍
+                      </span>
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search customer by name, mobile, code..."
+                        style={{
+                          width: "100%",
+                          padding: "12px 12px 12px 40px",
+                          borderRadius: 8,
+                          border: "2px solid #e0e7ff",
+                          fontSize: "0.95em",
+                          transition: "all 0.2s",
+                          boxShadow: searchTerm
+                            ? "0 2px 8px rgba(37, 99, 235, 0.15)"
+                            : "none",
+                          borderColor: searchTerm ? "#2563eb" : "#e0e7ff",
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = "#2563eb";
+                          e.target.style.boxShadow =
+                            "0 2px 8px rgba(37, 99, 235, 0.15)";
+                        }}
+                        onBlur={(e) => {
+                          if (!searchTerm) {
+                            e.target.style.borderColor = "#e0e7ff";
+                            e.target.style.boxShadow = "none";
+                          }
+                        }}
+                      />
+                      {searchTerm && (
                         <button
-                          type="button"
-                          className="btn-outline"
+                          onClick={() => setSearchTerm("")}
                           style={{
-                            background: "#b6c7e6",
-                            color: "#174ea6",
+                            position: "absolute",
+                            right: 12,
+                            background: "none",
                             border: "none",
-                            borderRadius: 8,
-                            padding: "8px 18px",
-                            flex: 1,
-                            minWidth: 120,
+                            fontSize: "1.1em",
+                            cursor: "pointer",
+                            color: "#9ca3af",
+                            padding: "4px 8px",
+                            transition: "color 0.2s",
                           }}
-                          onClick={() => {
-                            setEditingCustomerId(null);
-                            setCustomerInput(initialCustomer);
-                          }}
+                          onMouseOver={(e) =>
+                            (e.target.style.color = "#2563eb")
+                          }
+                          onMouseOut={(e) => (e.target.style.color = "#9ca3af")}
                         >
-                          Cancel
+                          ✕
                         </button>
                       )}
                     </div>
-                  </div>
-                </div>
 
-                {/* Customer List - Responsive */}
-                {customers.length > 0 && (
-                  <div style={{ marginTop: 18 }}>
-                    {/* Search Bar */}
+                    {filteredCustomers.length > 0 && (
+                      <ul
+                        style={{
+                          listStyle: "none",
+                          padding: "8px 0",
+                          maxHeight: 320,
+                          overflowY: "auto",
+                          marginTop: 8,
+                          background: "#fff",
+                          borderRadius: 8,
+                          boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)",
+                          border: "1px solid #e0e7ff",
+                          position: "relative",
+                          zIndex: 20,
+                        }}
+                      >
+                        {filteredCustomers.slice(0, 6).map((cust, idx) => (
+                          <li
+                            key={idx}
+                            onClick={() => {
+                              if (!editingCustomerId) {
+                                setCustomerInput((prev) => ({
+                                  ...prev,
+                                  name: cust.name || "",
+                                  code: cust.code || "",
+                                  mobile: cust.mobile || "",
+                                }));
+                              }
+                              setSearchTerm(cust.name);
+                              setFilteredCustomers([]);
+                            }}
+                            style={{
+                              padding: "12px 16px",
+                              cursor: "pointer",
+                              borderBottom:
+                                idx < Math.min(filteredCustomers.length - 1, 5)
+                                  ? "1px solid #f0f0f0"
+                                  : "none",
+                              transition: "all 0.15s",
+                              background: "#fff",
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.background = "#f0f7ff";
+                              e.currentTarget.style.paddingLeft = "20px";
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.background = "#fff";
+                              e.currentTarget.style.paddingLeft = "16px";
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                gap: 8,
+                              }}
+                            >
+                              <div>
+                                <div
+                                  style={{
+                                    fontWeight: 600,
+                                    color: "#1f2937",
+                                    fontSize: "0.95em",
+                                  }}
+                                >
+                                  📋 {cust.name}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "0.8em",
+                                    color: "#6b7280",
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  📱 {cust.mobile || "N/A"}{" "}
+                                  {cust.code && `• Code: ${cust.code}`}
+                                </div>
+                              </div>
+                              <div
+                                style={{ color: "#2563eb", fontSize: "1em" }}
+                              >
+                                →
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                        {filteredCustomers.length > 6 && (
+                          <li
+                            style={{
+                              padding: "8px 16px",
+                              textAlign: "center",
+                              color: "#9ca3af",
+                              fontSize: "0.85em",
+                              borderTop: "1px solid #f0f0f0",
+                            }}
+                          >
+                            ... {filteredCustomers.length - 6} more results
+                          </li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 14,
+                      background: "#e3eefd",
+                      padding: "12px 0",
+                      borderRadius: 8,
+                    }}
+                  >
                     <div
                       style={{
-                        marginBottom: 14,
-                        display: "flex",
-                        gap: 8,
-                        alignItems: "flex-end",
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(140px, 1fr))",
+                        gap: 12,
                       }}
                     >
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <label>Customer Name</label>
+                        <input
+                          name="name"
+                          value={customerInput.name}
+                          onChange={handleCustomerInput}
+                        />
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: 100 }}>
+                        <label>Customer Code</label>
+                        <input
+                          type="text"
+                          value={customerInput.code}
+                          onChange={(e) =>
+                            setCustomerInput({
+                              ...customerInput,
+                              code: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <label>Mobile Number</label>
+                        <input
+                          type="text"
+                          value={customerInput.mobile}
+                          onChange={(e) =>
+                            setCustomerInput({
+                              ...customerInput,
+                              mobile: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <label>Packaging</label>
+                        <select
+                          value={customerInput.orderPackaging}
+                          onChange={(e) =>
+                            setCustomerInput({
+                              ...customerInput,
+                              orderPackaging: e.target.value,
+                            })
+                          }
+                        >
+                          <option value="">Select Packaging</option>
+                          {packagingNames.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                          {/* 1+1 scheme options included in packaging list */}
+                          {onePlusOneSchemes.map((s) => (
+                            <option key={"scheme-" + s.key} value={s.label}>
+                              {s.label} — Offer ₹{s.offer}
+                            </option>
+                          ))}
+                        </select>
+                        {/* Show discount input when packaging selected (optional) */}
+                        {customerInput.orderPackaging && (
+                          <div style={{ marginTop: 6 }}>
+                            <label>Discount (optional)</label>
+                            <input
+                              type="number"
+                              value={customerInput.manualOffer || ""}
+                              onChange={(e) =>
+                                setCustomerInput((prev) => ({
+                                  ...prev,
+                                  manualOffer: e.target.value,
+                                }))
+                              }
+                              placeholder="Enter discount amount"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: 80 }}>
+                        <label>Qty</label>
+                        <input
+                          type="number"
+                          name="orderQty"
+                          value={customerInput.orderQty}
+                          onChange={handleCustomerInput}
+                          min="1"
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: "10px",
+                          fontWeight: "bold",
+                          gridColumn: "1 / -1",
+                        }}
+                      >
+                        Customer Total: ₹{currentTotal}
+                      </div>
+
+                      <div
+                        style={{ flex: 2, minWidth: 120, gridColumn: "1 / -1" }}
+                      >
+                        <label>Remarks</label>
+                        <input
+                          name="remarks"
+                          value={customerInput.remarks}
+                          onChange={handleCustomerInput}
+                          style={{
+                            fontFamily: "Noto Sans Gujarati, sans-serif",
+                          }}
+                          placeholder="ટિપ્પણી દાખલ કરો"
+                        />
+                      </div>
+
+                      <div
+                        style={{ flex: 1, minWidth: 150, gridColumn: "1 / -1" }}
+                      >
+                        <label>Payment Method</label>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 12,
+                            alignItems: "center",
+                            marginTop: 4,
+                          }}
+                        >
+                          <label
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              cursor: "pointer",
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="paymentMethod"
+                              value="PAVTI"
+                              checked={customerInput.paymentMethod === "PAVTI"}
+                              onChange={handleCustomerInput}
+                            />
+                            <span>PAVTI</span>
+                          </label>
+                          <label
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              cursor: "pointer",
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="paymentMethod"
+                              value="CASH"
+                              checked={customerInput.paymentMethod === "CASH"}
+                              onChange={handleCustomerInput}
+                            />
+                            <span>CASH</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div style={{ minWidth: 180, gridColumn: "1 / -1" }}>
+                        <label>Photo</label>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <select
+                            value={photoCapture}
+                            onChange={(e) => setPhotoCapture(e.target.value)}
+                            style={{
+                              padding: "6px",
+                              borderRadius: 6,
+                              flex: 1,
+                              minWidth: 150,
+                            }}
+                          >
+                            <option value="environment">
+                              Back Camera (recommended)
+                            </option>
+                            <option value="user">Front Camera</option>
+                          </select>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture={photoCapture}
+                            onChange={handleCustomerPhotoChange}
+                            style={{ flex: 1, minWidth: 150 }}
+                          />
+                        </div>
+                        {(customerInput.photo ||
+                          customerInput.photoPreview) && (
+                          <div
+                            style={{
+                              marginTop: 6,
+                              display: "flex",
+                              gap: 8,
+                              alignItems: "center",
+                            }}
+                          >
+                            <img
+                              src={
+                                customerInput.photo ||
+                                customerInput.photoPreview
+                              }
+                              alt="preview"
+                              style={{
+                                width: 64,
+                                height: 64,
+                                objectFit: "cover",
+                                borderRadius: 6,
+                                border: "1px solid #ddd",
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCustomerInput((prev) => ({
+                                  ...prev,
+                                  photo: "",
+                                  photoPreview: "",
+                                }));
+                                toast.success("Photo removed");
+                              }}
+                              style={{
+                                padding: "6px 10px",
+                                background: "#ef4444",
+                                color: "#fff",
+                                border: "none",
+                                borderRadius: 6,
+                                cursor: "pointer",
+                                fontWeight: 700,
+                                fontSize: "0.9em",
+                                transition: "all 0.2s",
+                              }}
+                              onMouseOver={(e) =>
+                                (e.target.style.background = "#dc2626")
+                              }
+                              onMouseOut={(e) =>
+                                (e.target.style.background = "#ef4444")
+                              }
+                              title="Delete photo"
+                            >
+                              ✕ Delete
+                            </button>
+                            {uploadingPhoto && (
+                              <div style={{ fontSize: 11, color: "#6b7280" }}>
+                                Uploading...
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        style={{
+                          padding: "8px 8px",
+                          fontWeight: 800,
+                          fontSize: "1em",
+                          borderRadius: 8,
+                          height: "40px",
+                          background: "#2563eb",
+                          color: "#fff",
+                          border: "none",
+                        }}
+                      >
+                        {" "}
+                        Send OTP
+                      </button>
+
+                      <div
+                        style={{
+                          minWidth: 120,
+                          display: "flex",
+                          gap: 8,
+                          gridColumn: "1 / -1",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={
+                            editingCustomerId
+                              ? handleUpdateCustomer
+                              : addCustomer
+                          }
+                          disabled={uploadingPhoto}
+                          title={uploadingPhoto ? "Wait for photo upload" : ""}
+                          style={{ flex: 1, minWidth: 120 }}
+                        >
+                          {uploadingPhoto
+                            ? "Uploading..."
+                            : editingCustomerId
+                              ? "Update Customer"
+                              : "Add Customer"}
+                        </button>
+
+                        {editingCustomerId && (
+                          <button
+                            type="button"
+                            className="btn-outline"
+                            style={{
+                              background: "#b6c7e6",
+                              color: "#174ea6",
+                              border: "none",
+                              borderRadius: 8,
+                              padding: "8px 18px",
+                              flex: 1,
+                              minWidth: 120,
+                            }}
+                            onClick={() => {
+                              setEditingCustomerId(null);
+                              setCustomerInput(initialCustomer);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Customer List - Responsive */}
+                  {customers.length > 0 && (
+                    <div style={{ marginTop: 18 }}>
+                      {/* Search Bar */}
+                      <div
+                        style={{
+                          marginBottom: 14,
+                          display: "flex",
+                          gap: 8,
+                          alignItems: "flex-end",
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <label
+                            style={{
+                              display: "block",
+                              marginBottom: 6,
+                              fontWeight: 600,
+                              fontSize: "0.9em",
+                              color: "#374151",
+                            }}
+                          >
+                            Search Customer:
+                          </label>
+                          <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search by Code, Name, or Mobile..."
+                            style={{
+                              width: "100%",
+                              padding: "8px 12px",
+                              border: "1px solid #d1d5db",
+                              borderRadius: 6,
+                              fontSize: "0.95em",
+                              background: "#fff",
+                            }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!searchQuery.trim()) {
+                              setSearchQuery("");
+                            }
+                          }}
+                          style={{
+                            padding: "8px 16px",
+                            background: "#2563eb",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: 6,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            fontSize: "0.9em",
+                            transition: "all 0.2s",
+                          }}
+                          onMouseOver={(e) => {
+                            e.target.style.background = "#1d4ed8";
+                          }}
+                          onMouseOut={(e) => {
+                            e.target.style.background = "#2563eb";
+                          }}
+                        >
+                          🔍 Search
+                        </button>
+                      </div>
+
+                      {/* Combined Filter Dropdown */}
+                      <div style={{ marginBottom: 14 }}>
                         <label
                           style={{
                             display: "block",
@@ -3749,13 +3971,29 @@ ${paymentLines || "—"}
                             color: "#374151",
                           }}
                         >
-                          Search Customer:
+                          Quick Filter:
                         </label>
-                        <input
-                          type="text"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder="Search by Code, Name, or Mobile..."
+                        <select
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val.startsWith("member:")) {
+                              setFilterByMember(val.substring(7));
+                              setFilterByPackage("all");
+                              setFilterByPayment("all");
+                            } else if (val.startsWith("package:")) {
+                              setFilterByPackage(val.substring(8));
+                              setFilterByMember("all");
+                              setFilterByPayment("all");
+                            } else if (val.startsWith("payment:")) {
+                              setFilterByPayment(val.substring(8));
+                              setFilterByMember("all");
+                              setFilterByPackage("all");
+                            } else {
+                              setFilterByMember("all");
+                              setFilterByPackage("all");
+                              setFilterByPayment("all");
+                            }
+                          }}
                           style={{
                             width: "100%",
                             padding: "8px 12px",
@@ -3763,772 +4001,531 @@ ${paymentLines || "—"}
                             borderRadius: 6,
                             fontSize: "0.95em",
                             background: "#fff",
+                            cursor: "pointer",
                           }}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!searchQuery.trim()) {
-                            setSearchQuery("");
-                          }
-                        }}
-                        style={{
-                          padding: "8px 16px",
-                          background: "#2563eb",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: 6,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          fontSize: "0.9em",
-                          transition: "all 0.2s",
-                        }}
-                        onMouseOver={(e) => {
-                          e.target.style.background = "#1d4ed8";
-                        }}
-                        onMouseOut={(e) => {
-                          e.target.style.background = "#2563eb";
-                        }}
-                      >
-                        🔍 Search
-                      </button>
-                    </div>
+                        >
+                          <option value="">— All Customers —</option>
 
-                    {/* Combined Filter Dropdown */}
-                    <div style={{ marginBottom: 14 }}>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: 6,
-                          fontWeight: 600,
-                          fontSize: "0.9em",
-                          color: "#374151",
-                        }}
-                      >
-                        Quick Filter:
-                      </label>
-                      <select
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val.startsWith("member:")) {
-                            setFilterByMember(val.substring(7));
-                            setFilterByPackage("all");
-                            setFilterByPayment("all");
-                          } else if (val.startsWith("package:")) {
-                            setFilterByPackage(val.substring(8));
-                            setFilterByMember("all");
-                            setFilterByPayment("all");
-                          } else if (val.startsWith("payment:")) {
-                            setFilterByPayment(val.substring(8));
-                            setFilterByMember("all");
-                            setFilterByPackage("all");
-                          } else {
-                            setFilterByMember("all");
-                            setFilterByPackage("all");
-                            setFilterByPayment("all");
-                          }
-                        }}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          border: "1px solid #d1d5db",
-                          borderRadius: 6,
-                          fontSize: "0.95em",
-                          background: "#fff",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <option value="">— All Customers —</option>
-
-                        <optgroup label="👤 Members">
-                          {uniqueMembers.map((member) => (
-                            <option
-                              key={member.email}
-                              value={`member:${member.email || member.username || member.displayName}`}
-                            >
-                              {member.email === currentUserEmail
-                                ? `${member.username || member.displayName || member.email} (You)`
-                                : `${member.username || member.displayName || member.email}`}
-                            </option>
-                          ))}
-                        </optgroup>
-
-                        <optgroup label="📦 Packages">
-                          {[
-                            ...new Set(
-                              customers
-                                .map((c) => c.orderPackaging)
-                                .filter(Boolean),
-                            ),
-                          ]
-                            .sort()
-                            .map((pkg) => (
-                              <option key={pkg} value={`package:${pkg}`}>
-                                {pkg}
+                          <optgroup label="👤 Members">
+                            {uniqueMembers.map((member) => (
+                              <option
+                                key={member.email}
+                                value={`member:${member.email || member.username || member.displayName}`}
+                              >
+                                {member.email === currentUserEmail
+                                  ? `${member.username || member.displayName || member.email} (You)`
+                                  : `${member.username || member.displayName || member.email}`}
                               </option>
                             ))}
-                        </optgroup>
+                          </optgroup>
 
-                        <optgroup label="💳 Payment Methods">
-                          <option value="payment:CASH">💵 CASH</option>
-                          <option value="payment:PAVTI">📋 PAVTI</option>
-                        </optgroup>
-                      </select>
-                    </div>
+                          <optgroup label="📦 Packages">
+                            {[
+                              ...new Set(
+                                customers
+                                  .map((c) => c.orderPackaging)
+                                  .filter(Boolean),
+                              ),
+                            ]
+                              .sort()
+                              .map((pkg) => (
+                                <option key={pkg} value={`package:${pkg}`}>
+                                  {pkg}
+                                </option>
+                              ))}
+                          </optgroup>
 
-                    {/* Calculate filtered list */}
-                    {(() => {
-                      let displayList = filteredCustomersByMember;
+                          <optgroup label="💳 Payment Methods">
+                            <option value="payment:CASH">💵 CASH</option>
+                            <option value="payment:PAVTI">📋 PAVTI</option>
+                          </optgroup>
+                        </select>
+                      </div>
 
-                      // Package filter
-                      if (filterByPackage !== "all") {
-                        displayList = displayList.filter(
-                          (c) => c.orderPackaging === filterByPackage,
-                        );
-                      }
+                      {/* Calculate filtered list */}
+                      {(() => {
+                        let displayList = filteredCustomersByMember;
 
-                      // Payment filter
-                      if (filterByPayment !== "all") {
-                        displayList = displayList.filter(
-                          (c) => c.paymentMethod === filterByPayment,
-                        );
-                      }
+                        // Package filter
+                        if (filterByPackage !== "all") {
+                          displayList = displayList.filter(
+                            (c) => c.orderPackaging === filterByPackage,
+                          );
+                        }
 
-                      // Search filter: code, name, mobile
-                      if (searchQuery.trim()) {
-                        const query = searchQuery.toLowerCase();
-                        displayList = displayList.filter(
-                          (c) =>
-                            (c.code && c.code.toLowerCase().includes(query)) ||
-                            (c.name && c.name.toLowerCase().includes(query)) ||
-                            (c.mobile &&
-                              c.mobile.toLowerCase().includes(query)),
-                        );
-                      } else {
-                        // Show only 5 recent entries if no search
-                        displayList = displayList.slice(-5).reverse();
-                      }
+                        // Payment filter
+                        if (filterByPayment !== "all") {
+                          displayList = displayList.filter(
+                            (c) => c.paymentMethod === filterByPayment,
+                          );
+                        }
 
-                      return (
-                        <>
-                          {searchQuery && (
+                        // Search filter: code, name, mobile
+                        if (searchQuery.trim()) {
+                          const query = searchQuery.toLowerCase();
+                          displayList = displayList.filter(
+                            (c) =>
+                              (c.code &&
+                                c.code.toLowerCase().includes(query)) ||
+                              (c.name &&
+                                c.name.toLowerCase().includes(query)) ||
+                              (c.mobile &&
+                                c.mobile.toLowerCase().includes(query)),
+                          );
+                        } else {
+                          // Show only 5 recent entries if no search
+                          displayList = displayList.slice(-5).reverse();
+                        }
+
+                        return (
+                          <>
+                            {searchQuery && (
+                              <div
+                                style={{
+                                  marginBottom: 12,
+                                  fontSize: "0.9em",
+                                  color: "#6b7280",
+                                }}
+                              >
+                                Found {displayList.length} customer(s)
+                              </div>
+                            )}
+                            {/* Card View - Horizontal Scroll */}
                             <div
                               style={{
-                                marginBottom: 12,
-                                fontSize: "0.9em",
-                                color: "#6b7280",
+                                display: "flex",
+                                overflowX: "auto",
+                                gap: 12,
+                                paddingBottom: 8,
                               }}
                             >
-                              Found {displayList.length} customer(s)
-                            </div>
-                          )}
-                          {/* Card View - Horizontal Scroll */}
-                          <div
-                            style={{
-                              display: "flex",
-                              overflowX: "auto",
-                              gap: 12,
-                              paddingBottom: 8,
-                            }}
-                          >
-                            {displayList.map((c, idx) => {
-                              const qty = parseInt(c.orderQty) || 0;
-                              let rate = 0;
-                              if (c.appliedPrice) {
-                                rate = parseInt(c.appliedPrice) || 0;
-                              } else {
-                                rate = getPriceByName(c.orderPackaging) || 0;
-                              }
-                              const total = rate * qty;
+                              {displayList.map((c, idx) => {
+                                const qty = parseInt(c.orderQty) || 0;
+                                let rate = 0;
+                                if (c.appliedPrice) {
+                                  rate = parseInt(c.appliedPrice) || 0;
+                                } else {
+                                  rate = getPriceByName(c.orderPackaging) || 0;
+                                }
+                                const total = rate * qty;
 
-                              return (
-                                <div
-                                  key={idx}
-                                  style={{
-                                    background: "#fff",
-                                    border: "1px solid #e5e7eb",
-                                    borderRadius: 10,
-                                    padding: 14,
-                                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                                    minWidth: 280,
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {/* Header with Photo and Name */}
+                                return (
                                   <div
+                                    key={idx}
                                     style={{
-                                      display: "flex",
-                                      gap: 10,
-                                      marginBottom: 12,
-                                      alignItems: "flex-start",
+                                      background: "#fff",
+                                      border: "1px solid #e5e7eb",
+                                      borderRadius: 10,
+                                      padding: 14,
+                                      boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                                      minWidth: 280,
+                                      flexShrink: 0,
                                     }}
                                   >
-                                    <div>
-                                      {c.photo ? (
-                                        <img
-                                          src={c.photo}
-                                          alt="customer"
-                                          style={{
-                                            width: 60,
-                                            height: 60,
-                                            objectFit: "cover",
-                                            borderRadius: 6,
-                                            border: "1px solid #d1d5db",
-                                          }}
-                                        />
-                                      ) : (
+                                    {/* Header with Photo and Name */}
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        gap: 10,
+                                        marginBottom: 12,
+                                        alignItems: "flex-start",
+                                      }}
+                                    >
+                                      <div>
+                                        {c.photo ? (
+                                          <img
+                                            src={c.photo}
+                                            alt="customer"
+                                            style={{
+                                              width: 60,
+                                              height: 60,
+                                              objectFit: "cover",
+                                              borderRadius: 6,
+                                              border: "1px solid #d1d5db",
+                                            }}
+                                          />
+                                        ) : (
+                                          <div
+                                            style={{
+                                              width: 60,
+                                              height: 60,
+                                              background: "#f3f4f6",
+                                              borderRadius: 6,
+                                              display: "flex",
+                                              alignItems: "center",
+                                              justifyContent: "center",
+                                              color: "#9ca3af",
+                                              fontSize: "1.5em",
+                                            }}
+                                          >
+                                            📷
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div style={{ flex: 1 }}>
                                         <div
                                           style={{
-                                            width: 60,
-                                            height: 60,
-                                            background: "#f3f4f6",
-                                            borderRadius: 6,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            color: "#9ca3af",
-                                            fontSize: "1.5em",
+                                            fontWeight: 700,
+                                            fontSize: "1.05em",
+                                            color: "#1f2937",
                                           }}
                                         >
-                                          📷
+                                          {c.name}
                                         </div>
-                                      )}
-                                    </div>
-                                    <div style={{ flex: 1 }}>
-                                      <div
-                                        style={{
-                                          fontWeight: 700,
-                                          fontSize: "1.05em",
-                                          color: "#1f2937",
-                                        }}
-                                      >
-                                        {c.name}
-                                      </div>
-                                      <div
-                                        style={{
-                                          fontSize: "0.85em",
-                                          color: "#6b7280",
-                                          marginTop: 2,
-                                        }}
-                                      >
-                                        📱 {c.mobile}
-                                      </div>
-                                      {c.code && (
                                         <div
                                           style={{
                                             fontSize: "0.85em",
                                             color: "#6b7280",
+                                            marginTop: 2,
                                           }}
                                         >
-                                          📋 Code: {c.code}
+                                          📱 {c.mobile}
+                                        </div>
+                                        {c.code && (
+                                          <div
+                                            style={{
+                                              fontSize: "0.85em",
+                                              color: "#6b7280",
+                                            }}
+                                          >
+                                            📋 Code: {c.code}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Details Grid */}
+                                    <div
+                                      style={{
+                                        background: "#f9fafb",
+                                        borderRadius: 6,
+                                        padding: 10,
+                                        marginBottom: 12,
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          display: "grid",
+                                          gridTemplateColumns: "1fr 1fr",
+                                          gap: 10,
+                                          fontSize: "0.9em",
+                                        }}
+                                      >
+                                        <div>
+                                          <div
+                                            style={{
+                                              color: "#6b7280",
+                                              fontSize: "0.8em",
+                                            }}
+                                          >
+                                            � Code
+                                          </div>
+                                          <div
+                                            style={{
+                                              fontWeight: 600,
+                                              color: "#1f2937",
+                                              marginTop: 2,
+                                            }}
+                                          >
+                                            {c.code || "—"}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div
+                                            style={{
+                                              color: "#6b7280",
+                                              fontSize: "0.8em",
+                                            }}
+                                          >
+                                            �📦 Packaging
+                                          </div>
+                                          <div
+                                            style={{
+                                              fontWeight: 600,
+                                              color: "#1f2937",
+                                              marginTop: 2,
+                                            }}
+                                          >
+                                            {c.orderPackaging}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div
+                                            style={{
+                                              color: "#6b7280",
+                                              fontSize: "0.8em",
+                                            }}
+                                          >
+                                            📊 Qty
+                                          </div>
+                                          <div
+                                            style={{
+                                              fontWeight: 600,
+                                              color: "#2563eb",
+                                              marginTop: 2,
+                                            }}
+                                          >
+                                            {qty}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div
+                                            style={{
+                                              color: "#6b7280",
+                                              fontSize: "0.8em",
+                                            }}
+                                          >
+                                            💰 Total
+                                          </div>
+                                          <div
+                                            style={{
+                                              fontWeight: 700,
+                                              color: "#16a34a",
+                                              marginTop: 2,
+                                              fontSize: "1.1em",
+                                            }}
+                                          >
+                                            ₹{total}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div
+                                            style={{
+                                              color: "#6b7280",
+                                              fontSize: "0.8em",
+                                            }}
+                                          >
+                                            💳 Payment
+                                          </div>
+                                          <div
+                                            style={{
+                                              fontWeight: 600,
+                                              color:
+                                                c.paymentMethod === "CASH"
+                                                  ? "#dc2626"
+                                                  : "#0369a1",
+                                              marginTop: 2,
+                                            }}
+                                          >
+                                            {c.paymentMethod || "—"}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Additional Info */}
+                                    {c.remarks && (
+                                      <div
+                                        style={{
+                                          marginBottom: 10,
+                                          fontSize: "0.85em",
+                                        }}
+                                      >
+                                        <div style={{ color: "#6b7280" }}>
+                                          📝 Remarks:
+                                        </div>
+                                        <div
+                                          style={{
+                                            color: "#374151",
+                                            marginTop: 2,
+                                          }}
+                                        >
+                                          {c.remarks}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Entry By */}
+                                    <div
+                                      style={{
+                                        fontSize: "0.8em",
+                                        color: "#6b7280",
+                                        marginBottom: 10,
+                                      }}
+                                    >
+                                      👤 By:{" "}
+                                      <span
+                                        style={{
+                                          color: "#2563eb",
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        {c.addedByUsername ||
+                                          c.addedByDisplayName ||
+                                          c.addedBy ||
+                                          demoInfo.entryBy ||
+                                          ""}
+                                      </span>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                      {canEditCustomer(c) ? (
+                                        <>
+                                          <button
+                                            type="button"
+                                            style={{
+                                              flex: 1,
+                                              background: "#2563eb",
+                                              color: "#fff",
+                                              padding: "8px 12px",
+                                              borderRadius: 6,
+                                              border: "none",
+                                              fontWeight: 600,
+                                              fontSize: "0.9em",
+                                              cursor: "pointer",
+                                            }}
+                                            onClick={() =>
+                                              handleEditCustomer(c)
+                                            }
+                                          >
+                                            ✏️ Edit
+                                          </button>
+                                          <button
+                                            type="button"
+                                            style={{
+                                              flex: 1,
+                                              background: "#ef4444",
+                                              color: "#fff",
+                                              padding: "8px 12px",
+                                              borderRadius: 6,
+                                              border: "none",
+                                              fontWeight: 600,
+                                              fontSize: "0.9em",
+                                              cursor: "pointer",
+                                            }}
+                                            onClick={() =>
+                                              handleRemoveCustomer(c.id)
+                                            }
+                                          >
+                                            🗑️ Remove
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <div
+                                          style={{
+                                            width: "100%",
+                                            textAlign: "center",
+                                            fontSize: "0.85em",
+                                            color: "#9ca3af",
+                                            padding: "8px 12px",
+                                          }}
+                                        >
+                                          Added by{" "}
+                                          {c.addedByUsername ||
+                                            c.addedByDisplayName ||
+                                            c.addedBy}
                                         </div>
                                       )}
                                     </div>
                                   </div>
+                                );
+                              })}
+                            </div>
+                          </>
+                        );
+                      })()}
 
-                                  {/* Details Grid */}
-                                  <div
-                                    style={{
-                                      background: "#f9fafb",
-                                      borderRadius: 6,
-                                      padding: 10,
-                                      marginBottom: 12,
-                                    }}
-                                  >
-                                    <div
-                                      style={{
-                                        display: "grid",
-                                        gridTemplateColumns: "1fr 1fr",
-                                        gap: 10,
-                                        fontSize: "0.9em",
-                                      }}
-                                    >
-                                      <div>
-                                        <div
-                                          style={{
-                                            color: "#6b7280",
-                                            fontSize: "0.8em",
-                                          }}
-                                        >
-                                          � Code
-                                        </div>
-                                        <div
-                                          style={{
-                                            fontWeight: 600,
-                                            color: "#1f2937",
-                                            marginTop: 2,
-                                          }}
-                                        >
-                                          {c.code || "—"}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div
-                                          style={{
-                                            color: "#6b7280",
-                                            fontSize: "0.8em",
-                                          }}
-                                        >
-                                          �📦 Packaging
-                                        </div>
-                                        <div
-                                          style={{
-                                            fontWeight: 600,
-                                            color: "#1f2937",
-                                            marginTop: 2,
-                                          }}
-                                        >
-                                          {c.orderPackaging}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div
-                                          style={{
-                                            color: "#6b7280",
-                                            fontSize: "0.8em",
-                                          }}
-                                        >
-                                          📊 Qty
-                                        </div>
-                                        <div
-                                          style={{
-                                            fontWeight: 600,
-                                            color: "#2563eb",
-                                            marginTop: 2,
-                                          }}
-                                        >
-                                          {qty}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div
-                                          style={{
-                                            color: "#6b7280",
-                                            fontSize: "0.8em",
-                                          }}
-                                        >
-                                          💰 Total
-                                        </div>
-                                        <div
-                                          style={{
-                                            fontWeight: 700,
-                                            color: "#16a34a",
-                                            marginTop: 2,
-                                            fontSize: "1.1em",
-                                          }}
-                                        >
-                                          ₹{total}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div
-                                          style={{
-                                            color: "#6b7280",
-                                            fontSize: "0.8em",
-                                          }}
-                                        >
-                                          💳 Payment
-                                        </div>
-                                        <div
-                                          style={{
-                                            fontWeight: 600,
-                                            color:
-                                              c.paymentMethod === "CASH"
-                                                ? "#dc2626"
-                                                : "#0369a1",
-                                            marginTop: 2,
-                                          }}
-                                        >
-                                          {c.paymentMethod || "—"}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Additional Info */}
-                                  {c.remarks && (
-                                    <div
-                                      style={{
-                                        marginBottom: 10,
-                                        fontSize: "0.85em",
-                                      }}
-                                    >
-                                      <div style={{ color: "#6b7280" }}>
-                                        📝 Remarks:
-                                      </div>
-                                      <div
-                                        style={{
-                                          color: "#374151",
-                                          marginTop: 2,
-                                        }}
-                                      >
-                                        {c.remarks}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Entry By */}
-                                  <div
-                                    style={{
-                                      fontSize: "0.8em",
-                                      color: "#6b7280",
-                                      marginBottom: 10,
-                                    }}
-                                  >
-                                    👤 By:{" "}
-                                    <span
-                                      style={{
-                                        color: "#2563eb",
-                                        fontWeight: 600,
-                                      }}
-                                    >
-                                      {c.addedByUsername ||
-                                        c.addedByDisplayName ||
-                                        c.addedBy ||
-                                        demoInfo.entryBy ||
-                                        ""}
-                                    </span>
-                                  </div>
-
-                                  {/* Action Buttons */}
-                                  <div style={{ display: "flex", gap: 8 }}>
-                                    {canEditCustomer(c) ? (
-                                      <>
-                                        <button
-                                          type="button"
-                                          style={{
-                                            flex: 1,
-                                            background: "#2563eb",
-                                            color: "#fff",
-                                            padding: "8px 12px",
-                                            borderRadius: 6,
-                                            border: "none",
-                                            fontWeight: 600,
-                                            fontSize: "0.9em",
-                                            cursor: "pointer",
-                                          }}
-                                          onClick={() => handleEditCustomer(c)}
-                                        >
-                                          ✏️ Edit
-                                        </button>
-                                        <button
-                                          type="button"
-                                          style={{
-                                            flex: 1,
-                                            background: "#ef4444",
-                                            color: "#fff",
-                                            padding: "8px 12px",
-                                            borderRadius: 6,
-                                            border: "none",
-                                            fontWeight: 600,
-                                            fontSize: "0.9em",
-                                            cursor: "pointer",
-                                          }}
-                                          onClick={() =>
-                                            handleRemoveCustomer(c.id)
-                                          }
-                                        >
-                                          🗑️ Remove
-                                        </button>
-                                      </>
-                                    ) : (
-                                      <div
-                                        style={{
-                                          width: "100%",
-                                          textAlign: "center",
-                                          fontSize: "0.85em",
-                                          color: "#9ca3af",
-                                          padding: "8px 12px",
-                                        }}
-                                      >
-                                        Added by{" "}
-                                        {c.addedByUsername ||
-                                          c.addedByDisplayName ||
-                                          c.addedBy}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </>
-                      );
-                    })()}
-
-                    {/* Grand Total - Always Visible on Mobile */}
-                    <div
-                      style={{
-                        marginTop: 14,
-                        padding: 14,
-                        background:
-                          "linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%)",
-                        border: "2px solid #0284c7",
-                        borderRadius: 8,
-                        textAlign: "center",
-                      }}
-                    >
+                      {/* Grand Total - Always Visible on Mobile */}
                       <div
                         style={{
-                          color: "#0369a1",
-                          fontSize: "0.9em",
-                          fontWeight: 600,
-                          marginBottom: 6,
+                          marginTop: 14,
+                          padding: 14,
+                          background:
+                            "linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%)",
+                          border: "2px solid #0284c7",
+                          borderRadius: 8,
+                          textAlign: "center",
                         }}
                       >
-                        Grand Total
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "1.5em",
-                          fontWeight: 700,
-                          color: "#1e40af",
-                        }}
-                      >
-                        ₹
-                        {filteredCustomersByMember.reduce((acc, c) => {
-                          let rate = 0;
-                          if (c.appliedPrice) {
-                            rate = parseInt(c.appliedPrice) || 0;
-                          } else {
-                            rate = getPriceByName(c.orderPackaging) || 0;
-                          }
-                          const qty = parseInt(c.orderQty) || 0;
-                          return acc + rate * qty;
-                        }, 0)}
+                        <div
+                          style={{
+                            color: "#0369a1",
+                            fontSize: "0.9em",
+                            fontWeight: 600,
+                            marginBottom: 6,
+                          }}
+                        >
+                          Grand Total
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "1.5em",
+                            fontWeight: 700,
+                            color: "#1e40af",
+                          }}
+                        >
+                          ₹
+                          {filteredCustomersByMember.reduce((acc, c) => {
+                            let rate = 0;
+                            if (c.appliedPrice) {
+                              rate = parseInt(c.appliedPrice) || 0;
+                            } else {
+                              rate = getPriceByName(c.orderPackaging) || 0;
+                            }
+                            const qty = parseInt(c.orderQty) || 0;
+                            return acc + rate * qty;
+                          }, 0)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}>
-                <button type="button" onClick={prevStep} style={{ background: "#e2e8f0", color: "#1e293b", padding: "12px 24px", borderRadius: 8, fontWeight: 600, border: "none", cursor: "pointer", fontSize: "16px" }}>⬅ Previous</button>
-                <button type="button" onClick={nextStep} style={{ background: "#0d6efd", color: "#fff", padding: "12px 24px", borderRadius: 8, fontWeight: 600, border: "none", cursor: "pointer", fontSize: "16px" }}>Review & Submit ➔</button>
-              </div>
+                  )}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginTop: 24,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={prevStep}
+                    style={{
+                      background: "#e2e8f0",
+                      color: "#1e293b",
+                      padding: "12px 24px",
+                      borderRadius: 8,
+                      fontWeight: 600,
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                    }}
+                  >
+                    ⬅ Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    style={{
+                      background: "#0d6efd",
+                      color: "#fff",
+                      padding: "12px 24px",
+                      borderRadius: 8,
+                      fontWeight: 600,
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                    }}
+                  >
+                    Review & Submit ➔
+                  </button>
+                </div>
               </div>
             )}
 
             {currentStep === 4 && (
               <div>
-              {/* Stock at Dairy */}
-              <div
-                className="section-card"
-                style={{
-                  marginBottom: 24,
-                  textAlign: "left",
-                  borderRadius: 14,
-                  boxShadow: "0 2px 12px #2563eb22",
-                  background: "#fff",
-                  padding: "24px 18px",
-                }}
-              >
-                <h3
-                  style={{
-                    margin: 0,
-                    color: "#174ea6",
-                    fontWeight: 700,
-                    fontSize: "1.15rem",
-                  }}
-                >
-                  Stock at Dairy
-                </h3>
+                {/* Stock at Dairy */}
                 <div
+                  className="section-card"
                   style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 14,
-                    alignItems: "end",
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 120 }}>
-                    <label>Packaging</label>
-                    <select
-                      value={stockInput.packaging}
-                      onChange={(e) =>
-                        setStockInput({
-                          ...stockInput,
-                          packaging: e.target.value,
-                        })
-                      }
-                    >
-                      <option value="">Select Packaging</option>
-                      {packagingNames.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={{ flex: 1, minWidth: 80 }}>
-                    <label>Quantity</label>
-                    <input
-                      type="number"
-                      name="quantity"
-                      value={stockInput.quantity}
-                      onChange={handleStockInput}
-                      min="1"
-                    />
-                  </div>
-                  <div>
-                    <button
-                      type="button"
-                      className="btn-outline"
-                      style={{
-                        padding: "8px 18px",
-                        fontWeight: 700,
-                        fontSize: "1em",
-                        borderRadius: 8,
-                        background: "#2563eb",
-                        color: "#fff",
-                        border: "none",
-                      }}
-                      onClick={addStockAtDairy}
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-
-                {stockAtDairy.length > 0 && (
-                  <div style={{ marginTop: 18 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        overflowX: "auto",
-                        gap: 14,
-                        marginBottom: 16,
-                        paddingBottom: 8,
-                      }}
-                    >
-                      {stockAtDairy.map((s, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            background:
-                              "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-                            padding: "16px",
-                            borderRadius: 10,
-                            border: "2px solid #f59e0b",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            boxShadow: "0 2px 8px #f59e0b22",
-                            minWidth: 240,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <div>
-                            <div
-                              style={{
-                                fontWeight: 800,
-                                color: "#d97706",
-                                fontSize: "1.05em",
-                              }}
-                            >
-                              {s.packaging}
-                            </div>
-                            <div
-                              style={{
-                                color: "#b45309",
-                                fontSize: "0.95em",
-                                marginTop: 4,
-                                fontWeight: 700,
-                              }}
-                            >
-                              Qty:
-                              <input
-                                type="number"
-                                value={parseInt(s.quantity) || 0}
-                                onChange={(e) =>
-                                  handleQuantityChangeAtDairy(e, idx)
-                                }
-                                min="0"
-                                style={{
-                                  width: 60,
-                                  marginLeft: 6,
-                                  padding: "4px 6px",
-                                  borderRadius: 4,
-                                  border: "1px solid #f59e0b",
-                                  fontSize: "0.9em",
-                                }}
-                              />
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              removeStockAtDairy(idx);
-                            }}
-                            style={{
-                              padding: "8px 12px",
-                              borderRadius: 6,
-                              background: "#ef4444",
-                              color: "#fff",
-                              border: "none",
-                              fontWeight: 600,
-                              cursor: "pointer",
-                              fontSize: "0.9em",
-                              transition: "all 0.2s",
-                              boxShadow: "0 2px 4px #ef444444",
-                            }}
-                            onMouseOver={(e) => {
-                              e.target.style.background = "#dc2626";
-                              e.target.style.transform = "scale(1.05)";
-                            }}
-                            onMouseOut={(e) => {
-                              e.target.style.background = "#ef4444";
-                              e.target.style.transform = "scale(1)";
-                            }}
-                          >
-                            ✕ Remove
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div
-                      style={{
-                        padding: "12px 14px",
-                        background: "#f0f9ff",
-                        borderRadius: 8,
-                        border: "1px solid #0284c7",
-                        textAlign: "center",
-                      }}
-                    >
-                      <strong style={{ color: "#0369a1" }}>
-                        Grand Total Stock Value: ₹
-                        {stockAtDairy.reduce((acc, s) => {
-                          if (!s.packaging) return acc;
-                          const price = getPriceByName(s.packaging) || 0;
-                          const qty = parseInt(s.quantity) || 0;
-                          return acc + price * qty;
-                        }, 0)}
-                      </strong>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {/* Realtime Stock Dashboard + Returned Stock */}
-              <div
-                className="section-card"
-                style={{
-                  marginBottom: 12,
-                  textAlign: "left",
-                  borderRadius: 14,
-                  boxShadow: "0 2px 12px #2563eb11",
-                  background: "#fff",
-                  padding: "clamp(14px, 4vw, 20px)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
+                    marginBottom: 24,
+                    textAlign: "left",
+                    borderRadius: 14,
+                    boxShadow: "0 2px 12px #2563eb22",
+                    background: "#fff",
+                    padding: "24px 18px",
                   }}
                 >
                   <h3
@@ -4536,51 +4533,263 @@ ${paymentLines || "—"}
                       margin: 0,
                       color: "#174ea6",
                       fontWeight: 700,
-                      fontSize: "clamp(1rem, 4vw, 1.15rem)",
+                      fontSize: "1.15rem",
                     }}
                   >
-                    📊 Realtime Stock Dashboard
+                    Stock at Dairy
                   </h3>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setIsDashboardCollapsed(!isDashboardCollapsed)
-                    }
+                  <div
                     style={{
-                      background: "#2563eb",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 6,
-                      padding: "6px 12px",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      fontSize: "0.9em",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 14,
+                      alignItems: "end",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 120 }}>
+                      <label>Packaging</label>
+                      <select
+                        value={stockInput.packaging}
+                        onChange={(e) =>
+                          setStockInput({
+                            ...stockInput,
+                            packaging: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select Packaging</option>
+                        {packagingNames.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 80 }}>
+                      <label>Quantity</label>
+                      <input
+                        type="number"
+                        name="quantity"
+                        value={stockInput.quantity}
+                        onChange={handleStockInput}
+                        min="1"
+                      />
+                    </div>
+                    <div>
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        style={{
+                          padding: "8px 18px",
+                          fontWeight: 700,
+                          fontSize: "1em",
+                          borderRadius: 8,
+                          background: "#2563eb",
+                          color: "#fff",
+                          border: "none",
+                        }}
+                        onClick={addStockAtDairy}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+
+                  {stockAtDairy.length > 0 && (
+                    <div style={{ marginTop: 18 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          overflowX: "auto",
+                          gap: 14,
+                          marginBottom: 16,
+                          paddingBottom: 8,
+                        }}
+                      >
+                        {stockAtDairy.map((s, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              background:
+                                "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+                              padding: "16px",
+                              borderRadius: 10,
+                              border: "2px solid #f59e0b",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              boxShadow: "0 2px 8px #f59e0b22",
+                              minWidth: 240,
+                              flexShrink: 0,
+                            }}
+                          >
+                            <div>
+                              <div
+                                style={{
+                                  fontWeight: 800,
+                                  color: "#d97706",
+                                  fontSize: "1.05em",
+                                }}
+                              >
+                                {s.packaging}
+                              </div>
+                              <div
+                                style={{
+                                  color: "#b45309",
+                                  fontSize: "0.95em",
+                                  marginTop: 4,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Qty:
+                                <input
+                                  type="number"
+                                  value={parseInt(s.quantity) || 0}
+                                  onChange={(e) =>
+                                    handleQuantityChangeAtDairy(e, idx)
+                                  }
+                                  min="0"
+                                  style={{
+                                    width: 60,
+                                    marginLeft: 6,
+                                    padding: "4px 6px",
+                                    borderRadius: 4,
+                                    border: "1px solid #f59e0b",
+                                    fontSize: "0.9em",
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                removeStockAtDairy(idx);
+                              }}
+                              style={{
+                                padding: "8px 12px",
+                                borderRadius: 6,
+                                background: "#ef4444",
+                                color: "#fff",
+                                border: "none",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                fontSize: "0.9em",
+                                transition: "all 0.2s",
+                                boxShadow: "0 2px 4px #ef444444",
+                              }}
+                              onMouseOver={(e) => {
+                                e.target.style.background = "#dc2626";
+                                e.target.style.transform = "scale(1.05)";
+                              }}
+                              onMouseOut={(e) => {
+                                e.target.style.background = "#ef4444";
+                                e.target.style.transform = "scale(1)";
+                              }}
+                            >
+                              ✕ Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div
+                        style={{
+                          padding: "12px 14px",
+                          background: "#f0f9ff",
+                          borderRadius: 8,
+                          border: "1px solid #0284c7",
+                          textAlign: "center",
+                        }}
+                      >
+                        <strong style={{ color: "#0369a1" }}>
+                          Grand Total Stock Value: ₹
+                          {stockAtDairy.reduce((acc, s) => {
+                            if (!s.packaging) return acc;
+                            const price = getPriceByName(s.packaging) || 0;
+                            const qty = parseInt(s.quantity) || 0;
+                            return acc + price * qty;
+                          }, 0)}
+                        </strong>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {/* Realtime Stock Dashboard + Returned Stock */}
+                <div
+                  className="section-card"
+                  style={{
+                    marginBottom: 12,
+                    textAlign: "left",
+                    borderRadius: 14,
+                    boxShadow: "0 2px 12px #2563eb11",
+                    background: "#fff",
+                    padding: "clamp(14px, 4vw, 20px)",
+                  }}
+                >
+                  <div
+                    style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: 6,
-                      transition: "all 0.2s",
+                      justifyContent: "space-between",
+                      gap: 10,
                     }}
-                    onMouseOver={(e) => (e.target.style.background = "#1d4ed8")}
-                    onMouseOut={(e) => (e.target.style.background = "#2563eb")}
                   >
-                    {isDashboardCollapsed ? "▶ Expand" : "▼ Collapse"}
-                  </button>
-                </div>
-
-                {!isDashboardCollapsed && (
-                  <>
-                    <p
+                    <h3
                       style={{
-                        marginTop: 8,
-                        color: "#6b7280",
-                        fontSize: "clamp(0.875rem, 3vw, 0.95rem)",
+                        margin: 0,
+                        color: "#174ea6",
+                        fontWeight: 700,
+                        fontSize: "clamp(1rem, 4vw, 1.15rem)",
                       }}
                     >
-                      Shows sold, returned, and remaining stock (derived from
-                      customers and village stock).
-                    </p>
+                      📊 Realtime Stock Dashboard
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setIsDashboardCollapsed(!isDashboardCollapsed)
+                      }
+                      style={{
+                        background: "#2563eb",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 6,
+                        padding: "6px 12px",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        fontSize: "0.9em",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        transition: "all 0.2s",
+                      }}
+                      onMouseOver={(e) =>
+                        (e.target.style.background = "#1d4ed8")
+                      }
+                      onMouseOut={(e) =>
+                        (e.target.style.background = "#2563eb")
+                      }
+                    >
+                      {isDashboardCollapsed ? "▶ Expand" : "▼ Collapse"}
+                    </button>
+                  </div>
 
-                    <style>{`
+                  {!isDashboardCollapsed && (
+                    <>
+                      <p
+                        style={{
+                          marginTop: 8,
+                          color: "#6b7280",
+                          fontSize: "clamp(0.875rem, 3vw, 0.95rem)",
+                        }}
+                      >
+                        Shows sold, returned, and remaining stock (derived from
+                        customers and village stock).
+                      </p>
+
+                      <style>{`
                   @keyframes fadeIn {
                     from { opacity: 0; }
                     to { opacity: 1; }
@@ -4590,562 +4799,639 @@ ${paymentLines || "—"}
                   }
                 `}</style>
 
-                    <div
-                      className="stock-dashboard-table"
-                      style={{ marginTop: 12, overflowX: "auto" }}
-                    >
-                      <table
-                        style={{
-                          width: "100%",
-                          borderCollapse: "separate",
-                          borderSpacing: 0,
-                          fontSize: "clamp(0.9rem, 3vw, 0.95rem)",
-                          minWidth: "100%",
-                        }}
+                      <div
+                        className="stock-dashboard-table"
+                        style={{ marginTop: 12, overflowX: "auto" }}
                       >
-                        <thead>
-                          <tr
-                            style={{
-                              textAlign: "left",
-                              backgroundColor: "#f0f7ff",
-                              borderBottom: "3px solid #2563eb",
-                            }}
-                          >
-                            <th
-                              style={{
-                                padding: "clamp(8px, 2vw, 12px)",
-                                fontWeight: 700,
-                                color: "#1f2937",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              <div>Packaging</div>
-                              <div
-                                style={{
-                                  fontSize: "0.75rem",
-                                  color: "#2e7d32",
-                                  marginTop: "2px",
-                                }}
-                              >
-                                ✅ Remaining
-                              </div>
-                            </th>
-                            <th
-                              style={{
-                                padding: "clamp(8px, 2vw, 12px)",
-                                fontWeight: 700,
-                                color: "#1976d2",
-                                textAlign: "center",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              <div>📦 Stock Taken</div>
-                            </th>
-                            <th
-                              style={{
-                                padding: "clamp(8px, 2vw, 12px)",
-                                fontWeight: 700,
-                                color: "#6a1b9a",
-                                textAlign: "center",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              <div>💰 Stock Sold</div>
-                            </th>
-                            <th
-                              style={{
-                                padding: "clamp(8px, 2vw, 12px)",
-                                fontWeight: 700,
-                                color: "#e65100",
-                                textAlign: "center",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              <div>🏪 At Dairy</div>
-                            </th>
-                            <th
-                              style={{
-                                padding: "clamp(8px, 2vw, 12px)",
-                                fontWeight: 700,
-                                color: "#d97706",
-                                textAlign: "center",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              <div>🔄 Returned</div>
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {remainingStockList.map((r, idx) => (
+                        <table
+                          style={{
+                            width: "100%",
+                            borderCollapse: "separate",
+                            borderSpacing: 0,
+                            fontSize: "clamp(0.9rem, 3vw, 0.95rem)",
+                            minWidth: "100%",
+                          }}
+                        >
+                          <thead>
                             <tr
-                              key={idx}
                               style={{
-                                background: idx % 2 === 0 ? "#fff" : "#fbfdff",
-                                borderBottom: "1px solid #e0e7ff",
-                                transition: "all 0.2s",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                  "#f0f7ff";
-                                e.currentTarget.style.boxShadow =
-                                  "inset 0 0 8px rgba(37, 99, 235, 0.1)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                  idx % 2 === 0 ? "#fff" : "#fbfdff";
-                                e.currentTarget.style.boxShadow = "none";
+                                textAlign: "left",
+                                backgroundColor: "#f0f7ff",
+                                borderBottom: "3px solid #2563eb",
                               }}
                             >
-                              <td
+                              <th
                                 style={{
                                   padding: "clamp(8px, 2vw, 12px)",
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                   color: "#1f2937",
                                   whiteSpace: "nowrap",
                                 }}
                               >
-                                <div>{r.packaging}</div>
+                                <div>Packaging</div>
                                 <div
                                   style={{
-                                    fontSize: "0.85rem",
-                                    fontWeight: 700,
-                                    color:
-                                      r.remaining < 0 ? "#b91c1c" : "#2e7d32",
+                                    fontSize: "0.75rem",
+                                    color: "#2e7d32",
                                     marginTop: "2px",
                                   }}
                                 >
-                                  {r.remaining}
+                                  ✅ Remaining
                                 </div>
-                              </td>
-                              <td
+                              </th>
+                              <th
                                 style={{
                                   padding: "clamp(8px, 2vw, 12px)",
-                                  textAlign: "center",
-                                  backgroundColor: "#e3f2fd",
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                   color: "#1976d2",
+                                  textAlign: "center",
                                   whiteSpace: "nowrap",
                                 }}
                               >
-                                {r.stock}
-                              </td>
-                              <td
+                                <div>📦 Stock Taken</div>
+                              </th>
+                              <th
                                 style={{
                                   padding: "clamp(8px, 2vw, 12px)",
-                                  textAlign: "center",
-                                  backgroundColor: "#f3e5f5",
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                   color: "#6a1b9a",
+                                  textAlign: "center",
                                   whiteSpace: "nowrap",
                                 }}
                               >
-                                {r.sold}
-                              </td>
-                              <td
+                                <div>💰 Stock Sold</div>
+                              </th>
+                              <th
                                 style={{
                                   padding: "clamp(8px, 2vw, 12px)",
-                                  textAlign: "center",
-                                  backgroundColor: "#fff3e0",
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                   color: "#e65100",
+                                  textAlign: "center",
                                   whiteSpace: "nowrap",
                                 }}
                               >
-                                {r.dairy}
-                              </td>
-                              <td
+                                <div>🏪 At Dairy</div>
+                              </th>
+                              <th
                                 style={{
                                   padding: "clamp(8px, 2vw, 12px)",
-                                  textAlign: "center",
-                                  backgroundColor: "#fef3c7",
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                   color: "#d97706",
+                                  textAlign: "center",
                                   whiteSpace: "nowrap",
                                 }}
                               >
-                                {r.returned}
-                              </td>
+                                <div>🔄 Returned</div>
+                              </th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Returned Stock Input Section */}
-                    <div
-                      style={{
-                        marginTop: 18,
-                        background: "#f7fafd",
-                        borderRadius: 8,
-                        padding: 12,
-                      }}
-                    >
-                      <h4
-                        style={{
-                          margin: 0,
-                          color: "#174ea6",
-                          fontWeight: 700,
-                          fontSize: "1em",
-                        }}
-                      >
-                        Add Returned Stock
-                      </h4>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 10,
-                          alignItems: "center",
-                          flexWrap: "wrap",
-                          marginTop: 8,
-                        }}
-                      >
-                        <select
-                          name="packaging"
-                          value={returnedStockInput.packaging}
-                          onChange={handleReturnedStockInput}
-                          style={{
-                            padding: "8px",
-                            borderRadius: 6,
-                            minWidth: 150,
-                          }}
-                        >
-                          <option value="">Select Packaging</option>
-                          {packagingNames.map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="number"
-                          name="quantity"
-                          value={returnedStockInput.quantity}
-                          onChange={handleReturnedStockInput}
-                          min="1"
-                          placeholder="Qty"
-                          style={{
-                            width: 100,
-                            padding: "8px",
-                            borderRadius: 6,
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={addReturnedStock}
-                          style={{
-                            padding: "8px 16px",
-                            background: "#10b981",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: 8,
-                            fontWeight: 700,
-                            fontSize: "1em",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Add Returned
-                        </button>
-                      </div>
-                      {/* List of returned stock */}
-                      {stockReturned.length > 0 && (
-                        <div style={{ marginTop: 10 }}>
-                          <b>Returned Stock List:</b>
-                          <ul
-                            style={{ margin: 0, padding: 0, listStyle: "none" }}
-                          >
-                            {stockReturned.map((s, idx) => (
-                              <li
+                          </thead>
+                          <tbody>
+                            {remainingStockList.map((r, idx) => (
+                              <tr
                                 key={idx}
                                 style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 8,
-                                  marginBottom: 4,
+                                  background:
+                                    idx % 2 === 0 ? "#fff" : "#fbfdff",
+                                  borderBottom: "1px solid #e0e7ff",
+                                  transition: "all 0.2s",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor =
+                                    "#f0f7ff";
+                                  e.currentTarget.style.boxShadow =
+                                    "inset 0 0 8px rgba(37, 99, 235, 0.1)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor =
+                                    idx % 2 === 0 ? "#fff" : "#fbfdff";
+                                  e.currentTarget.style.boxShadow = "none";
                                 }}
                               >
-                                <span>
-                                  {s.packaging} - Qty: {s.quantity}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => removeReturnedStock(idx)}
+                                <td
                                   style={{
-                                    background: "#ef4444",
-                                    color: "#fff",
-                                    border: "none",
-                                    borderRadius: 4,
-                                    padding: "2px 8px",
-                                    fontSize: "0.9em",
-                                    cursor: "pointer",
+                                    padding: "clamp(8px, 2vw, 12px)",
+                                    fontWeight: 600,
+                                    color: "#1f2937",
+                                    whiteSpace: "nowrap",
                                   }}
                                 >
-                                  Remove
-                                </button>
-                              </li>
+                                  <div>{r.packaging}</div>
+                                  <div
+                                    style={{
+                                      fontSize: "0.85rem",
+                                      fontWeight: 700,
+                                      color:
+                                        r.remaining < 0 ? "#b91c1c" : "#2e7d32",
+                                      marginTop: "2px",
+                                    }}
+                                  >
+                                    {r.remaining}
+                                  </div>
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "clamp(8px, 2vw, 12px)",
+                                    textAlign: "center",
+                                    backgroundColor: "#e3f2fd",
+                                    fontWeight: 600,
+                                    color: "#1976d2",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {r.stock}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "clamp(8px, 2vw, 12px)",
+                                    textAlign: "center",
+                                    backgroundColor: "#f3e5f5",
+                                    fontWeight: 600,
+                                    color: "#6a1b9a",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {r.sold}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "clamp(8px, 2vw, 12px)",
+                                    textAlign: "center",
+                                    backgroundColor: "#fff3e0",
+                                    fontWeight: 600,
+                                    color: "#e65100",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {r.dairy}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "clamp(8px, 2vw, 12px)",
+                                    textAlign: "center",
+                                    backgroundColor: "#fef3c7",
+                                    fontWeight: 600,
+                                    color: "#d97706",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {r.returned}
+                                </td>
+                              </tr>
                             ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-              {/* Payment Collection Section */}
-              <div
-                className="section-card"
-                style={{
-                  marginBottom: 24,
-                  textAlign: "left",
-                  borderRadius: 14,
-                  boxShadow: "0 2px 12px #2563eb11",
-                  background: "#fff",
-                  padding: "24px 18px",
-                }}
-              >
-                <h3
-                  style={{
-                    margin: 0,
-                    color: "#174ea6",
-                    fontWeight: 700,
-                    fontSize: "1.15rem",
-                    marginBottom: 16,
-                  }}
-                >
-                  💳 Payment Collected
-                </h3>
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 14,
-                    alignItems: "end",
-                    marginBottom: 14,
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 120 }}>
-                    <label>Amount*</label>
-                    <input
-                      type="number"
-                      name="amount"
-                      value={paymentInput.amount}
-                      onChange={handlePaymentInput}
-                      placeholder="Enter amount"
-                      min="1"
-                      step="0.01"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 140 }}>
-                    <label>Payment Mode*</label>
-                    <select
-                      name="mode"
-                      value={paymentInput.mode}
-                      onChange={handlePaymentInput}
-                      style={{ width: "100%" }}
-                    >
-                      <option value="">Select Mode</option>
-                      <option value="Cash">Cash</option>
-                      <option value="UPI">UPI</option>
-                      <option value="Cheque">Cheque</option>
-                      <option value="Bank Transfer">Bank Transfer</option>
-                      <option value="Card">Card</option>
-                    </select>
-                  </div>
-                  <div style={{ flex: 1, minWidth: 120 }}>
-                    <label>Given By*</label>
-                    <input
-                      type="text"
-                      name="givenBy"
-                      value={paymentInput.givenBy}
-                      onChange={handlePaymentInput}
-                      placeholder="Customer name"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 120 }}>
-                    <label>Taken By*</label>
-                    <input
-                      type="text"
-                      name="takenBy"
-                      value={paymentInput.takenBy}
-                      onChange={handlePaymentInput}
-                      placeholder="Your name"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                  <div>
-                    <button
-                      type="button"
-                      className="btn-outline"
-                      style={{
-                        padding: "8px 18px",
-                        fontWeight: 700,
-                        fontSize: "1em",
-                        borderRadius: 8,
-                        background: "#2563eb",
-                        color: "#fff",
-                        border: "none",
-                        cursor: "pointer",
-                      }}
-                      onClick={addPayment}
-                    >
-                      Add Payment
-                    </button>
-                  </div>
-                </div>
+                          </tbody>
+                        </table>
+                      </div>
 
-                {paymentsCollected.length > 0 && (
-                  <div style={{ marginTop: 18, overflowX: "auto" }}>
-                    <table
-                      style={{
-                        width: "100%",
-                        borderCollapse: "collapse",
-                        textAlign: "center",
-                        background: "#fff",
-                        borderRadius: 8,
-                        boxShadow: "0 1px 6px #2563eb11",
-                      }}
-                    >
-                      <thead>
-                        <tr
+                      {/* Returned Stock Input Section */}
+                      <div
+                        style={{
+                          marginTop: 18,
+                          background: "#f7fafd",
+                          borderRadius: 8,
+                          padding: 12,
+                        }}
+                      >
+                        <h4
                           style={{
-                            background: "#f7fafd",
-                            fontWeight: 700,
+                            margin: 0,
                             color: "#174ea6",
+                            fontWeight: 700,
+                            fontSize: "1em",
                           }}
                         >
-                          <th>Amount (₹)</th>
-                          <th>Mode</th>
-                          <th>Given By</th>
-                          <th>Taken By</th>
-                          <th>Remove</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paymentsCollected.map((p, idx) => (
-                          <tr
-                            key={idx}
+                          Add Returned Stock
+                        </h4>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 10,
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            marginTop: 8,
+                          }}
+                        >
+                          <select
+                            name="packaging"
+                            value={returnedStockInput.packaging}
+                            onChange={handleReturnedStockInput}
                             style={{
-                              background: idx % 2 === 0 ? "#f7fafd" : "#fff",
+                              padding: "8px",
+                              borderRadius: 6,
+                              minWidth: 150,
                             }}
                           >
-                            <td>
-                              <strong>
-                                ₹{parseFloat(p.amount).toFixed(2)}
-                              </strong>
-                            </td>
-                            <td>{p.mode}</td>
-                            <td>{p.givenBy}</td>
-                            <td>{p.takenBy}</td>
-                            <td>
-                              <button
-                                type="button"
-                                style={{
-                                  padding: "4px 12px",
-                                  borderRadius: 6,
-                                  background: "#ef4444",
-                                  color: "#fff",
-                                  border: "none",
-                                  fontWeight: 600,
-                                  cursor: "pointer",
-                                  fontSize: "0.9em",
-                                }}
-                                onClick={() => removePayment(idx)}
-                              >
-                                Remove
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                        <tr
-                          style={{ background: "#f0f9ff", fontWeight: "bold" }}
-                        >
-                          <td
-                            colSpan="5"
-                            style={{ textAlign: "right", padding: "12px 8px" }}
+                            <option value="">Select Packaging</option>
+                            {packagingNames.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            name="quantity"
+                            value={returnedStockInput.quantity}
+                            onChange={handleReturnedStockInput}
+                            min="1"
+                            placeholder="Qty"
+                            style={{
+                              width: 100,
+                              padding: "8px",
+                              borderRadius: 6,
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={addReturnedStock}
+                            style={{
+                              padding: "8px 16px",
+                              background: "#10b981",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: 8,
+                              fontWeight: 700,
+                              fontSize: "1em",
+                              cursor: "pointer",
+                            }}
                           >
-                            Total Payment Collected: ₹
-                            {paymentsCollected
-                              .reduce((acc, p) => acc + parseFloat(p.amount), 0)
-                              .toFixed(2)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-              <button type="button" onClick={pickRandomCustomer}>
-                Pick Random Winners
-              </button>
-              {randomWinners.small && (
-                <p>🎉 1L/2L Winner: {randomWinners.small.name}</p>
-              )}
-              {randomWinners.large && (
-                <p>🥳 5L/10L/20L Winner: {randomWinners.large.name}</p>
-              )}
-              {/* EXPORT & ACTIONS SECTION */}
-              <div
-                style={{
-                  marginTop: 28,
-                  marginBottom: 28,
-                  display: "flex",
-                  gap: 16,
-                  flexWrap: "wrap",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  padding: "20px",
-                  background:
-                    "linear-gradient(135deg, #f0f9ff 0%, #f5f3ff 100%)",
-                  borderRadius: 14,
-                  border: "2px solid #0284c7",
-                  maxWidth: 1000,
-                  marginLeft: "auto",
-                  marginRight: "auto",
-                  boxShadow: "0 4px 16px #0284c722",
-                }}
-              >
+                            Add Returned
+                          </button>
+                        </div>
+                        {/* List of returned stock */}
+                        {stockReturned.length > 0 && (
+                          <div style={{ marginTop: 10 }}>
+                            <b>Returned Stock List:</b>
+                            <ul
+                              style={{
+                                margin: 0,
+                                padding: 0,
+                                listStyle: "none",
+                              }}
+                            >
+                              {stockReturned.map((s, idx) => (
+                                <li
+                                  key={idx}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    marginBottom: 4,
+                                  }}
+                                >
+                                  <span>
+                                    {s.packaging} - Qty: {s.quantity}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeReturnedStock(idx)}
+                                    style={{
+                                      background: "#ef4444",
+                                      color: "#fff",
+                                      border: "none",
+                                      borderRadius: 4,
+                                      padding: "2px 8px",
+                                      fontSize: "0.9em",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Remove
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+                {/* Payment Collection Section */}
                 <div
+                  className="section-card"
                   style={{
-                    width: "100%",
-                    textAlign: "center",
-                    marginBottom: 12,
-                    paddingBottom: 12,
-                    borderBottom: "2px solid #bfdbfe",
+                    marginBottom: 24,
+                    textAlign: "left",
+                    borderRadius: 14,
+                    boxShadow: "0 2px 12px #2563eb11",
+                    background: "#fff",
+                    padding: "24px 18px",
                   }}
                 >
                   <h3
                     style={{
                       margin: 0,
-                      color: "#0369a1",
-                      fontWeight: 900,
-                      fontSize: "1.4rem",
-                      letterSpacing: "0.05em",
+                      color: "#174ea6",
+                      fontWeight: 700,
+                      fontSize: "1.15rem",
+                      marginBottom: 16,
                     }}
                   >
-                    📤 EXPORT OPTIONS
+                    💳 Payment Collected
                   </h3>
-                  <p
+                  <div
                     style={{
-                      margin: "6px 0 0 0",
-                      color: "#0891b2",
-                      fontWeight: 600,
-                      fontSize: "0.95em",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 14,
+                      alignItems: "end",
+                      marginBottom: 14,
                     }}
                   >
-                    Save your demo sales record in multiple formats
-                  </p>
-                </div>
+                    <div style={{ flex: 1, minWidth: 120 }}>
+                      <label>Amount*</label>
+                      <input
+                        type="number"
+                        name="amount"
+                        value={paymentInput.amount}
+                        onChange={handlePaymentInput}
+                        placeholder="Enter amount"
+                        min="1"
+                        step="0.01"
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 140 }}>
+                      <label>Payment Mode*</label>
+                      <select
+                        name="mode"
+                        value={paymentInput.mode}
+                        onChange={handlePaymentInput}
+                        style={{ width: "100%" }}
+                      >
+                        <option value="">Select Mode</option>
+                        <option value="Cash">Cash</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Cheque">Cheque</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Card">Card</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 120 }}>
+                      <label>Given By*</label>
+                      <input
+                        type="text"
+                        name="givenBy"
+                        value={paymentInput.givenBy}
+                        onChange={handlePaymentInput}
+                        placeholder="Customer name"
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 120 }}>
+                      <label>Taken By*</label>
+                      <input
+                        type="text"
+                        name="takenBy"
+                        value={paymentInput.takenBy}
+                        onChange={handlePaymentInput}
+                        placeholder="Your name"
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+                    <div>
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        style={{
+                          padding: "8px 18px",
+                          fontWeight: 700,
+                          fontSize: "1em",
+                          borderRadius: 8,
+                          background: "#2563eb",
+                          color: "#fff",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                        onClick={addPayment}
+                      >
+                        Add Payment
+                      </button>
+                    </div>
+                  </div>
 
+                  {paymentsCollected.length > 0 && (
+                    <div style={{ marginTop: 18, overflowX: "auto" }}>
+                      <table
+                        style={{
+                          width: "100%",
+                          borderCollapse: "collapse",
+                          textAlign: "center",
+                          background: "#fff",
+                          borderRadius: 8,
+                          boxShadow: "0 1px 6px #2563eb11",
+                        }}
+                      >
+                        <thead>
+                          <tr
+                            style={{
+                              background: "#f7fafd",
+                              fontWeight: 700,
+                              color: "#174ea6",
+                            }}
+                          >
+                            <th>Amount (₹)</th>
+                            <th>Mode</th>
+                            <th>Given By</th>
+                            <th>Taken By</th>
+                            <th>Remove</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paymentsCollected.map((p, idx) => (
+                            <tr
+                              key={idx}
+                              style={{
+                                background: idx % 2 === 0 ? "#f7fafd" : "#fff",
+                              }}
+                            >
+                              <td>
+                                <strong>
+                                  ₹{parseFloat(p.amount).toFixed(2)}
+                                </strong>
+                              </td>
+                              <td>{p.mode}</td>
+                              <td>{p.givenBy}</td>
+                              <td>{p.takenBy}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  style={{
+                                    padding: "4px 12px",
+                                    borderRadius: 6,
+                                    background: "#ef4444",
+                                    color: "#fff",
+                                    border: "none",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                    fontSize: "0.9em",
+                                  }}
+                                  onClick={() => removePayment(idx)}
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                          <tr
+                            style={{
+                              background: "#f0f9ff",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            <td
+                              colSpan="5"
+                              style={{
+                                textAlign: "right",
+                                padding: "12px 8px",
+                              }}
+                            >
+                              Total Payment Collected: ₹
+                              {paymentsCollected
+                                .reduce(
+                                  (acc, p) => acc + parseFloat(p.amount),
+                                  0,
+                                )
+                                .toFixed(2)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+                <button type="button" onClick={pickRandomCustomer}>
+                  Pick Random Winners
+                </button>
+                {randomWinners.small && (
+                  <p>🎉 1L/2L Winner: {randomWinners.small.name}</p>
+                )}
+                {randomWinners.large && (
+                  <p>🥳 5L/10L/20L Winner: {randomWinners.large.name}</p>
+                )}
+                {/* EXPORT & ACTIONS SECTION */}
                 <div
                   style={{
+                    marginTop: 28,
+                    marginBottom: 28,
                     display: "flex",
-                    gap: 12,
-                    justifyContent: "center",
+                    gap: 16,
                     flexWrap: "wrap",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    padding: "20px",
+                    background:
+                      "linear-gradient(135deg, #f0f9ff 0%, #f5f3ff 100%)",
+                    borderRadius: 14,
+                    border: "2px solid #0284c7",
+                    maxWidth: 1000,
+                    marginLeft: "auto",
+                    marginRight: "auto",
+                    boxShadow: "0 4px 16px #0284c722",
                   }}
                 >
+                  <div
+                    style={{
+                      width: "100%",
+                      textAlign: "center",
+                      marginBottom: 12,
+                      paddingBottom: 12,
+                      borderBottom: "2px solid #bfdbfe",
+                    }}
+                  >
+                    <h3
+                      style={{
+                        margin: 0,
+                        color: "#0369a1",
+                        fontWeight: 900,
+                        fontSize: "1.4rem",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      📤 EXPORT OPTIONS
+                    </h3>
+                    <p
+                      style={{
+                        margin: "6px 0 0 0",
+                        color: "#0891b2",
+                        fontWeight: 600,
+                        fontSize: "0.95em",
+                      }}
+                    >
+                      Save your demo sales record in multiple formats
+                    </p>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 12,
+                      justifyContent: "center",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      style={{
+                        padding: "14px 32px",
+                        fontWeight: 800,
+                        fontSize: "1.1em",
+                        borderRadius: 10,
+                        background:
+                          "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                        color: "#fff",
+                        border: "none",
+                        cursor: "pointer",
+                        transition: "all 0.3s",
+                        boxShadow: "0 4px 12px #10b98144",
+                        minWidth: 200,
+                        letterSpacing: "0.03em",
+                      }}
+                      onClick={handleExportDemoRegister}
+                      onMouseOver={(e) => {
+                        e.target.style.transform = "translateY(-3px)";
+                        e.target.style.boxShadow = "0 8px 20px #10b98155";
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.transform = "translateY(0)";
+                        e.target.style.boxShadow = "0 4px 12px #10b98144";
+                      }}
+                    >
+                      📊 Export Demo Register
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      style={{
+                        padding: "14px 32px",
+                        fontWeight: 800,
+                        fontSize: "1.1em",
+                        borderRadius: 10,
+                        background:
+                          "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
+                        color: "#fff",
+                        border: "none",
+                        cursor: "pointer",
+                        transition: "all 0.3s",
+                        boxShadow: "0 4px 12px #8b5cf644",
+                        minWidth: 200,
+                        letterSpacing: "0.03em",
+                      }}
+                      onClick={handleExportMantriReport}
+                      onMouseOver={(e) => {
+                        e.target.style.transform = "translateY(-3px)";
+                        e.target.style.boxShadow = "0 8px 20px #8b5cf655";
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.transform = "translateY(0)";
+                        e.target.style.boxShadow = "0 4px 12px #8b5cf644";
+                      }}
+                    >
+                      👨 Export Mantri Report (PAVTI Only)
+                    </button>
+                  </div>
+
                   <button
                     type="button"
                     className="btn-outline"
@@ -5155,26 +5441,26 @@ ${paymentLines || "—"}
                       fontSize: "1.1em",
                       borderRadius: 10,
                       background:
-                        "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                        "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
                       color: "#fff",
                       border: "none",
                       cursor: "pointer",
                       transition: "all 0.3s",
-                      boxShadow: "0 4px 12px #10b98144",
+                      boxShadow: "0 4px 12px #3b82f644",
                       minWidth: 200,
                       letterSpacing: "0.03em",
                     }}
-                    onClick={handleExportDemoRegister}
+                    onClick={handleExportPDF}
                     onMouseOver={(e) => {
                       e.target.style.transform = "translateY(-3px)";
-                      e.target.style.boxShadow = "0 8px 20px #10b98155";
+                      e.target.style.boxShadow = "0 8px 20px #3b82f655";
                     }}
                     onMouseOut={(e) => {
                       e.target.style.transform = "translateY(0)";
-                      e.target.style.boxShadow = "0 4px 12px #10b98144";
+                      e.target.style.boxShadow = "0 4px 12px #3b82f644";
                     }}
                   >
-                    📊 Export Demo Register
+                    📄 Download PDF
                   </button>
 
                   <button
@@ -5186,16 +5472,46 @@ ${paymentLines || "—"}
                       fontSize: "1.1em",
                       borderRadius: 10,
                       background:
+                        "linear-gradient(135deg, #ec4899 0%, #db2777 100%)",
+                      color: "#fff",
+                      border: "none",
+                      cursor: "pointer",
+                      transition: "all 0.3s",
+                      boxShadow: "0 4px 12px #ec489944",
+                      minWidth: 200,
+                      letterSpacing: "0.03em",
+                    }}
+                    onClick={handleGenerateSummary}
+                    onMouseOver={(e) => {
+                      e.target.style.transform = "translateY(-3px)";
+                      e.target.style.boxShadow = "0 8px 20px #ec489955";
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.transform = "translateY(0)";
+                      e.target.style.boxShadow = "0 4px 12px #ec489944";
+                    }}
+                  >
+                    💬 WhatsApp Summary
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    style={{
+                      padding: "14px 40px",
+                      fontWeight: 900,
+                      fontSize: "1.15em",
+                      borderRadius: 10,
+                      background:
                         "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
                       color: "#fff",
                       border: "none",
                       cursor: "pointer",
                       transition: "all 0.3s",
                       boxShadow: "0 4px 12px #8b5cf644",
-                      minWidth: 200,
-                      letterSpacing: "0.03em",
+                      minWidth: 240,
+                      letterSpacing: "0.05em",
                     }}
-                    onClick={handleExportMantriReport}
                     onMouseOver={(e) => {
                       e.target.style.transform = "translateY(-3px)";
                       e.target.style.boxShadow = "0 8px 20px #8b5cf655";
@@ -5205,187 +5521,114 @@ ${paymentLines || "—"}
                       e.target.style.boxShadow = "0 4px 12px #8b5cf644";
                     }}
                   >
-                    👨 Export Mantri Report (PAVTI Only)
+                    {submitting ? "⏳ Submitting..." : "✅ FINAL SUBMIT"}
                   </button>
                 </div>
+                {/* Summary card */}
+                {/* WhatsApp Summary */}
+                {waSummary && (
+                  <div
+                    style={{
+                      margin: "18px auto 0 auto",
+                      maxWidth: 600,
+                      background: "#f7fafd",
+                      border: "1.5px solid #b6c7e6",
+                      borderRadius: 10,
+                      padding: "16px 18px",
+                      fontFamily: "monospace",
+                      whiteSpace: "pre-wrap", // ✅ important for formatting
+                      color: "#174ea6",
+                      fontSize: "1.08em",
+                      position: "relative",
+                    }}
+                  >
+                    <b>WhatsApp Summary:</b>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(waSummary);
+                          setWACopied(true);
+                          setTimeout(() => setWACopied(false), 1500);
+                        } catch (e) {
+                          setWACopied(false);
+                        }
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: 14,
+                        right: 16,
+                        fontSize: "0.98em",
+                        padding: "3px 12px",
+                        borderRadius: 6,
+                        background: waCopied ? "#22c55e" : "#2563eb",
+                        color: "#fff",
+                        border: "none",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        transition: "background 0.2s",
+                      }}
+                      title={waCopied ? "Copied!" : "Copy to clipboard"}
+                    >
+                      {waCopied ? "Copied" : "Copy"}
+                    </button>
 
-                <button
-                  type="button"
-                  className="btn-outline"
-                  style={{
-                    padding: "14px 32px",
-                    fontWeight: 800,
-                    fontSize: "1.1em",
-                    borderRadius: 10,
-                    background:
-                      "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
-                    color: "#fff",
-                    border: "none",
-                    cursor: "pointer",
-                    transition: "all 0.3s",
-                    boxShadow: "0 4px 12px #3b82f644",
-                    minWidth: 200,
-                    letterSpacing: "0.03em",
-                  }}
-                  onClick={handleExportPDF}
-                  onMouseOver={(e) => {
-                    e.target.style.transform = "translateY(-3px)";
-                    e.target.style.boxShadow = "0 8px 20px #3b82f655";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.transform = "translateY(0)";
-                    e.target.style.boxShadow = "0 4px 12px #3b82f644";
-                  }}
-                >
-                  📄 Download PDF
-                </button>
-
-                <button
-                  type="button"
-                  className="btn-outline"
-                  style={{
-                    padding: "14px 32px",
-                    fontWeight: 800,
-                    fontSize: "1.1em",
-                    borderRadius: 10,
-                    background:
-                      "linear-gradient(135deg, #ec4899 0%, #db2777 100%)",
-                    color: "#fff",
-                    border: "none",
-                    cursor: "pointer",
-                    transition: "all 0.3s",
-                    boxShadow: "0 4px 12px #ec489944",
-                    minWidth: 200,
-                    letterSpacing: "0.03em",
-                  }}
-                  onClick={handleGenerateSummary}
-                  onMouseOver={(e) => {
-                    e.target.style.transform = "translateY(-3px)";
-                    e.target.style.boxShadow = "0 8px 20px #ec489955";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.transform = "translateY(0)";
-                    e.target.style.boxShadow = "0 4px 12px #ec489944";
-                  }}
-                >
-                  💬 WhatsApp Summary
-                </button>
-
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  style={{
-                    padding: "14px 40px",
-                    fontWeight: 900,
-                    fontSize: "1.15em",
-                    borderRadius: 10,
-                    background:
-                      "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
-                    color: "#fff",
-                    border: "none",
-                    cursor: "pointer",
-                    transition: "all 0.3s",
-                    boxShadow: "0 4px 12px #8b5cf644",
-                    minWidth: 240,
-                    letterSpacing: "0.05em",
-                  }}
-                  onMouseOver={(e) => {
-                    e.target.style.transform = "translateY(-3px)";
-                    e.target.style.boxShadow = "0 8px 20px #8b5cf655";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.transform = "translateY(0)";
-                    e.target.style.boxShadow = "0 4px 12px #8b5cf644";
-                  }}
-                >
-                  {submitting ? "⏳ Submitting..." : "✅ FINAL SUBMIT"}
-                </button>
-              </div>
-              {/* Summary card */}
-              {/* WhatsApp Summary */}
-              {waSummary && (
+                    {/* ✅ replace this */}
+                    <pre style={{ marginTop: 8 }}>{waSummary}</pre>
+                  </div>
+                )}
+                {msg && (
+                  <div
+                    style={{
+                      marginTop: 14,
+                      color: msg.startsWith("Error") ? "#b91c1c" : "#2563eb",
+                      fontWeight: 600,
+                      textAlign: "center",
+                    }}
+                  >
+                    {msg}
+                  </div>
+                )}
+                {submitError && (
+                  <div
+                    style={{
+                      color: "#b91c1c",
+                      fontWeight: 600,
+                      marginTop: 14,
+                      textAlign: "center",
+                    }}
+                  >
+                    {submitError}
+                  </div>
+                )}
                 <div
                   style={{
-                    margin: "18px auto 0 auto",
-                    maxWidth: 600,
-                    background: "#f7fafd",
-                    border: "1.5px solid #b6c7e6",
-                    borderRadius: 10,
-                    padding: "16px 18px",
-                    fontFamily: "monospace",
-                    whiteSpace: "pre-wrap", // ✅ important for formatting
-                    color: "#174ea6",
-                    fontSize: "1.08em",
-                    position: "relative",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginTop: 24,
                   }}
                 >
-                  <b>WhatsApp Summary:</b>
                   <button
                     type="button"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(waSummary);
-                        setWACopied(true);
-                        setTimeout(() => setWACopied(false), 1500);
-                      } catch (e) {
-                        setWACopied(false);
-                      }
-                    }}
+                    onClick={prevStep}
                     style={{
-                      position: "absolute",
-                      top: 14,
-                      right: 16,
-                      fontSize: "0.98em",
-                      padding: "3px 12px",
-                      borderRadius: 6,
-                      background: waCopied ? "#22c55e" : "#2563eb",
-                      color: "#fff",
+                      background: "#e2e8f0",
+                      color: "#1e293b",
+                      padding: "12px 24px",
+                      borderRadius: 8,
+                      fontWeight: 600,
                       border: "none",
-                      fontWeight: 700,
                       cursor: "pointer",
-                      transition: "background 0.2s",
+                      fontSize: "16px",
                     }}
-                    title={waCopied ? "Copied!" : "Copy to clipboard"}
                   >
-                    {waCopied ? "Copied" : "Copy"}
+                    ⬅ Previous
                   </button>
-
-                  {/* ✅ replace this */}
-                  <pre style={{ marginTop: 8 }}>{waSummary}</pre>
                 </div>
-              )}
-              {msg && (
-                <div
-                  style={{
-                    marginTop: 14,
-                    color: msg.startsWith("Error") ? "#b91c1c" : "#2563eb",
-                    fontWeight: 600,
-                    textAlign: "center",
-                  }}
-                >
-                  {msg}
-                </div>
-              )}
-              {submitError && (
-                <div
-                  style={{
-                    color: "#b91c1c",
-                    fontWeight: 600,
-                    marginTop: 14,
-                    textAlign: "center",
-                  }}
-                >
-                  {submitError}
-                </div>
-              )}
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}>
-                <button type="button" onClick={prevStep} style={{ background: "#e2e8f0", color: "#1e293b", padding: "12px 24px", borderRadius: 8, fontWeight: 600, border: "none", cursor: "pointer", fontSize: "16px" }}>⬅ Previous</button>
-              </div>
               </div>
             )}
-            </div>
+          </div>
         </form>
-
       </div>
     </>
   );

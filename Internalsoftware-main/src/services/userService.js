@@ -1,16 +1,35 @@
-import { db } from '../firebase';
-import { doc, updateDoc, collection, query, where, getDocs, arrayUnion } from 'firebase/firestore';
+import { db } from "../firebase";
+import {
+  doc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  arrayUnion,
+} from "firebase/firestore";
 
 /**
  * Transition a user to the Manager role when they start a demo.
  * @param {string} userDocId - The Firestore document ID of the user.
  */
 export async function startDemoAsManager(userDocId) {
-  if (!userDocId) throw new Error('User Document ID is required.');
-  
-  const userRef = doc(db, 'users', userDocId);
+  if (!userDocId) throw new Error("User Document ID is required.");
+
+  const notification = {
+    id: Math.random().toString(36).substring(2, 9),
+    title: "Role Assigned",
+    message: "You have been assigned as a Manager after starting a demo.",
+    read: false,
+    type: "role_update",
+    senderEmail: "System",
+    createdAt: Date.now(),
+  };
+
+  const userRef = doc(db, "users", userDocId);
   await updateDoc(userRef, {
-    role: 'manager'
+    role: "manager",
+    notifications: arrayUnion(notification),
   });
 }
 
@@ -22,14 +41,14 @@ export async function startDemoAsManager(userDocId) {
  * @returns {Promise<boolean>} - True if officer was added, false if user not found.
  */
 export async function addFieldOfficer(managerUid, officerEmail, managerEmail) {
-  if (!managerUid) throw new Error('Manager UID is required.');
-  if (!officerEmail) throw new Error('Officer email is required.');
+  if (!managerUid) throw new Error("Manager UID is required.");
+  if (!officerEmail) throw new Error("Officer email is required.");
 
   const normalizedEmail = officerEmail.trim().toLowerCase();
-  
+
   const q = query(
-    collection(db, 'users'),
-    where('email', '==', normalizedEmail)
+    collection(db, "users"),
+    where("email", "==", normalizedEmail),
   );
 
   const querySnapshot = await getDocs(q);
@@ -42,18 +61,18 @@ export async function addFieldOfficer(managerUid, officerEmail, managerEmail) {
   const officerDoc = querySnapshot.docs[0];
   const notification = {
     id: Math.random().toString(36).substring(2, 9),
-    title: 'Role Assigned',
-    message: `You have been assigned as a Field Officer by ${managerEmail || 'Manager'}.`,
+    title: "Role Assigned",
+    message: `You have been assigned as a Field Officer by ${managerEmail || "Manager"}.`,
     read: false,
-    type: 'role_update',
-    senderEmail: managerEmail || 'Manager',
-    createdAt: Date.now()
+    type: "role_update",
+    senderEmail: managerEmail || "Manager",
+    createdAt: Date.now(),
   };
 
   await updateDoc(officerDoc.ref, {
-    role: 'field_officer',
+    role: "field_officer",
     addedByManagerId: managerUid,
-    notifications: arrayUnion(notification)
+    notifications: arrayUnion(notification),
   });
 
   return true;
@@ -65,11 +84,11 @@ export async function addFieldOfficer(managerUid, officerEmail, managerEmail) {
  * @param {boolean} canView - Access status.
  */
 export async function toggleHistoryAccess(userDocId, canView) {
-  if (!userDocId) throw new Error('User Document ID is required.');
-  
-  const userRef = doc(db, 'users', userDocId);
+  if (!userDocId) throw new Error("User Document ID is required.");
+
+  const userRef = doc(db, "users", userDocId);
   await updateDoc(userRef, {
-    canViewHistory: canView
+    canViewHistory: canView,
   });
 }
 
@@ -78,33 +97,38 @@ export async function toggleHistoryAccess(userDocId, canView) {
  * @param {string} userDocId - The Firestore document ID of the user.
  * @param {string} newRole - The role to assign.
  */
-export async function updateUserRole(userDocId, newRole, targetEmail, adminEmail) {
-  if (!userDocId) throw new Error('User Document ID is required.');
-  if (!newRole) throw new Error('New role is required.');
+export async function updateUserRole(
+  userDocId,
+  newRole,
+  targetEmail,
+  adminEmail,
+) {
+  if (!userDocId) throw new Error("User Document ID is required.");
+  if (!newRole) throw new Error("New role is required.");
 
-  const userRef = doc(db, 'users', userDocId);
-  
+  const userRef = doc(db, "users", userDocId);
+
   const roleLabels = {
-    admin: 'Admin',
-    manager: 'Manager',
-    field_officer: 'Field Officer',
-    user: 'Regular User'
+    admin: "Admin",
+    manager: "Manager",
+    field_officer: "Field Officer",
+    user: "Regular User",
   };
 
   const roleLabel = roleLabels[newRole] || newRole;
 
   const notification = {
     id: Math.random().toString(36).substring(2, 9),
-    title: 'Role Assigned',
-    message: `You have been assigned as a ${roleLabel} by Admin (${adminEmail || 'Admin'}).`,
+    title: "Role Assigned",
+    message: `You have been assigned as a ${roleLabel} by Admin (${adminEmail || "Admin"}).`,
     read: false,
-    type: 'role_update',
-    senderEmail: adminEmail || 'Admin',
-    createdAt: Date.now()
+    type: "role_update",
+    senderEmail: adminEmail || "Admin",
+    createdAt: Date.now(),
   };
 
   await updateDoc(userRef, {
     role: newRole,
-    notifications: arrayUnion(notification)
+    notifications: arrayUnion(notification),
   });
 }
