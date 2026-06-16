@@ -11,7 +11,9 @@ import {
   doc,
   setDoc,
   deleteDoc,
-  updateDoc
+  updateDoc,
+  limit,
+  writeBatch
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getPackagingNames, getPriceByName, getLitresByName } from "../config/packagingConfig";
@@ -27,6 +29,8 @@ export default function MemberPage() {
   const [selectedVillageid, setSelectedVillageid] = useState("");
   const [customers, setCustomers] = useState([]);
   const [excelCustomers, setExcelCustomers] = useState([]);
+  const [limitCount, setLimitCount] = useState(10);
+  const [hasMore, setHasMore] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [photoCapture, setPhotoCapture] = useState("environment");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -138,7 +142,7 @@ export default function MemberPage() {
     { label: "20 LTR STEEL + 20 LTR STEEL", key: "20S_20S", base: 3520 + 3520, offer: 6000, parts: ["20 LTR STEEL", "20 LTR STEEL"] },
   ];
 
-   const handleCustomerPhotoChange = async (e) => {
+  const handleCustomerPhotoChange = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
 
@@ -165,7 +169,7 @@ export default function MemberPage() {
       
       console.log(`✅ Image compressed successfully: ${compressedSizeInMB.toFixed(2)}MB (from ${originalSizeInMB.toFixed(2)}MB)`);
       
-      // Store compressed base64 in state - will be saved to Firestore
+      // Store compressed base64 in state - will be saved to Firestore directly
       setCustomerInput(prev => ({ 
         ...prev, 
         photo: compressedBase64,
@@ -202,19 +206,30 @@ export default function MemberPage() {
     return () => unsub();
   }, [selectedVillageid]);
 
+  // Reset pagination limit when village changes
+  useEffect(() => {
+    setLimitCount(10);
+    setHasMore(true);
+  }, [selectedVillageid]);
+
   // 🔹 Real-time listener for manual customers
   useEffect(() => {
     if (!selectedVillageid) return;
-    const q = query(collection(db, "customers"), where("villageId", "==", selectedVillageid));
+    const q = query(
+      collection(db, "customers"),
+      where("villageId", "==", selectedVillageid),
+      limit(limitCount)
+    );
     const unsub = onSnapshot(q, snapshot => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setCustomers(data);
+      setHasMore(snapshot.docs.length === limitCount);
     }, err => {
       console.error("Error fetching manual customers:", err);
       setCustomers([]);
     });
     return () => unsub();
-  }, [selectedVillageid]);
+  }, [selectedVillageid, limitCount]);
 
   // 🔹 Real-time listener for excel customers
   useEffect(() => {
@@ -230,10 +245,11 @@ export default function MemberPage() {
     return () => unsub();
   }, [selectedVillageid]);
 
-  // 🔹 Real-time listener for stock from villageStocks 
+  // 🔹 Real-time listener for village stocks (Consolidated)
   useEffect(() => {
     if (!selectedVillageid) {
       setDemoStockTaken([]);
+      setDemoStockAtDairy([]);
       return;
     }
 
@@ -242,46 +258,21 @@ export default function MemberPage() {
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
-          const stocks = Array.isArray(data?.stocks) ? data.stocks : [];
-          setDemoStockTaken(stocks);
+          setDemoStockTaken(Array.isArray(data?.stocks) ? data.stocks : []);
+          setDemoStockAtDairy(Array.isArray(data?.dairyStocks) ? data.dairyStocks : []);
         } else {
           setDemoStockTaken([]);
-        }
-      },
-      (err) => {
-        console.error("Error loading stock:", err);
-        setDemoStockTaken([]);
-      }
-    );
-
-    return () => stockUnsub();
-  }, [selectedVillageid]);
-
-  // 🔹 Real-time listener for stock at dairy from villageStocks
-  useEffect(() => {
-    if (!selectedVillageid) {
-      setDemoStockAtDairy([]);
-      return;
-    }
-
-    const dairyUnsub = onSnapshot(
-      doc(db, "villageStocks", selectedVillageid),
-      (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          const dairyStocks = Array.isArray(data?.dairyStocks) ? data.dairyStocks : [];
-          setDemoStockAtDairy(dairyStocks);
-        } else {
           setDemoStockAtDairy([]);
         }
       },
       (err) => {
-        console.error("Error loading dairy stock:", err);
+        console.error("Error loading village stocks:", err);
+        setDemoStockTaken([]);
         setDemoStockAtDairy([]);
       }
     );
 
-    return () => dairyUnsub();
+    return () => stockUnsub();
   }, [selectedVillageid]);
 
   const handleCustomerInput = (e) => {
@@ -336,28 +327,33 @@ export default function MemberPage() {
         const email = user?.email || "";
         const addedBy = username || displayName || email || "Unknown";
 
-        for (const row of rows) {
-          const payload = {
-            name: row.name || row.Name || "",
-            code: row.code || row.Code || "",
-            mobile: row.mobile || row.Mobile || "",
-            orderPackaging: row.orderPackaging || row.OrderPackaging || "",
-            orderQty: row.orderQty || row.OrderQty || "",
-            remarks: row.remarks || row.Remarks || "",
-            paymentMethod: row.paymentMethod || row.PaymentMethod || "",
-            villageId: selectedVillageid,
-            addedByRole: "member",
-            addedBy,
-            addedByUsername: username,
-            addedByDisplayName: displayName,
-            addedByEmail: email,
-            createdAt: serverTimestamp(),
-          };
-          try {
-            await addDoc(collection(db, "excelCustomers", selectedVillageid, "customers"), payload);
-          } catch (err) {
-            console.error("Error saving Excel row:", err);
-          }
+        const BATCH_LIMIT = 500;
+        for (let i = 0; i < rows.length; i += BATCH_LIMIT) {
+          const chunk = rows.slice(i, i + BATCH_LIMIT);
+          const batch = writeBatch(db);
+          
+          chunk.forEach(row => {
+            const payload = {
+              name: row.name || row.Name || "",
+              code: row.code || row.Code || "",
+              mobile: row.mobile || row.Mobile || "",
+              orderPackaging: row.orderPackaging || row.OrderPackaging || "",
+              orderQty: row.orderQty || row.OrderQty || "",
+              remarks: row.remarks || row.Remarks || "",
+              paymentMethod: row.paymentMethod || row.PaymentMethod || "",
+              villageId: selectedVillageid,
+              addedByRole: "member",
+              addedBy,
+              addedByUsername: username,
+              addedByDisplayName: displayName,
+              addedByEmail: email,
+              createdAt: serverTimestamp(),
+            };
+            const docRef = doc(collection(db, "excelCustomers", selectedVillageid, "customers"));
+            batch.set(docRef, payload);
+          });
+          
+          await batch.commit();
         }
         toast.dismiss(toastId);
         toast.success("✓ Excel data uploaded successfully!");
@@ -1252,6 +1248,29 @@ export default function MemberPage() {
               </div>
             ))}
             </div>
+            {hasMore && (
+              <div style={{ textAlign: "center", marginTop: 24 }}>
+                <button
+                  onClick={() => setLimitCount(prev => prev + 10)}
+                  style={{
+                    padding: "10px 24px",
+                    background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    fontSize: "0.95em",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseOver={(e) => e.target.style.background = "linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%)"}
+                  onMouseOut={(e) => e.target.style.background = "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)"}
+                >
+                  ⏳ Load More Customers
+                </button>
+              </div>
+            )}
             </div>
           )}
         </div>
