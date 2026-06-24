@@ -240,11 +240,9 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
               }}
               onMouseEnter={(e) => {
                 e.target.style.background = "rgba(255,255,255,0.25)";
-                e.target.style.transform = "translateY(-1px)";
               }}
               onMouseLeave={(e) => {
                 e.target.style.background = "rgba(255,255,255,0.15)";
-                e.target.style.transform = "translateY(0)";
               }}
             >
               Change Selection
@@ -418,17 +416,14 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
                             setHighlightedIndex(index);
                             e.currentTarget.style.background = "#eff6ff";
                             e.currentTarget.style.color = "#1d4ed8";
-                            e.currentTarget.style.paddingLeft = "20px";
                           }}
                           onMouseLeave={(e) => {
                             if (highlightedIndex === index) {
                               e.currentTarget.style.background = "#eff6ff";
                               e.currentTarget.style.color = "#1d4ed8";
-                              e.currentTarget.style.paddingLeft = "16px";
                             } else {
                               e.currentTarget.style.background = selectedVillageId === village.id ? "#f8fafc" : "#fff";
                               e.currentTarget.style.color = "#334155";
-                              e.currentTarget.style.paddingLeft = "16px";
                             }
                           }}
                         >
@@ -483,7 +478,7 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
                   placeholder="Enter village name"
                   value={addNewInput}
                   onChange={(e) => setAddNewInput(e.target.value)}
-                  onKeyPress={(e) => {
+                  onKeyDown={(e) => {
                     if (e.key === "Enter" && addNewInput.trim()) {
                       handleCreateNewVillage();
                     }
@@ -541,13 +536,11 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
                 }}
                 onMouseEnter={(e) => {
                   if (addNewInput.trim()) {
-                    e.target.style.transform = "translateY(-2px)";
                     e.target.style.boxShadow = "0 6px 15px rgba(16, 185, 129, 0.4)";
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (addNewInput.trim()) {
-                    e.target.style.transform = "translateY(0)";
                     e.target.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.3)";
                   }
                 }}
