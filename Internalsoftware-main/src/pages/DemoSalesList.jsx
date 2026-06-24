@@ -3070,7 +3070,7 @@ ${paymentLines || "—"}
                             >
                               {stockTaken.map((t, idx) => (
                                 <div
-                                  key={idx}
+                                  key={t.packaging || `${t.packaging}-${idx}`}
                                   style={{
                                     background:
                                       "linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)",
@@ -3456,7 +3456,12 @@ ${paymentLines || "—"}
                       >
                         {filteredCustomers.slice(0, 6).map((cust, idx) => (
                           <li
-                            key={idx}
+                            key={
+                              cust.code ||
+                              cust.mobile ||
+                              (cust.name && `${cust.name}-${cust.mobile}`) ||
+                              idx
+                            }
                             onClick={() => {
                               if (!editingCustomerId) {
                                 setCustomerInput((prev) => ({
@@ -4111,7 +4116,13 @@ ${paymentLines || "—"}
 
                                 return (
                                   <div
-                                    key={idx}
+                                    key={
+                                      c.id ||
+                                      c.code ||
+                                      c.mobile ||
+                                      (c.name && `${c.name}-${c.mobile}`) ||
+                                      idx
+                                    }
                                     style={{
                                       background: "#fff",
                                       border: "1px solid #e5e7eb",
@@ -4608,7 +4619,7 @@ ${paymentLines || "—"}
                       >
                         {stockAtDairy.map((s, idx) => (
                           <div
-                            key={idx}
+                            key={s.packaging || `${s.packaging}-${idx}`}
                             style={{
                               background:
                                 "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
@@ -4888,7 +4899,7 @@ ${paymentLines || "—"}
                           <tbody>
                             {remainingStockList.map((r, idx) => (
                               <tr
-                                key={idx}
+                                key={r.packaging || `${r.packaging}-${idx}`}
                                 style={{
                                   background:
                                     idx % 2 === 0 ? "#fff" : "#fbfdff",
@@ -5070,7 +5081,7 @@ ${paymentLines || "—"}
                             >
                               {stockReturned.map((s, idx) => (
                                 <li
-                                  key={idx}
+                                  key={s.packaging || `${s.packaging}-${idx}`}
                                   style={{
                                     display: "flex",
                                     alignItems: "center",
@@ -5239,7 +5250,7 @@ ${paymentLines || "—"}
                         <tbody>
                           {paymentsCollected.map((p, idx) => (
                             <tr
-                              key={idx}
+                              key={`${p.mode || "pm"}-${p.amount || "amt"}-${idx}`}
                               style={{
                                 background: idx % 2 === 0 ? "#f7fafd" : "#fff",
                               }}
