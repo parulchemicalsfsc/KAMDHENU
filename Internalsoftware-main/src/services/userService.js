@@ -10,8 +10,25 @@ import {
   where,
   getDocs,
   arrayUnion,
+  addDoc,
 } from "firebase/firestore";
 import app from "../firebase";
+import { initializeApp, getApp, getApps } from "firebase/app";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signOut as secondarySignOut,
+} from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+};
 
 /**
  * Transition a user to the Manager role when they start a demo.
@@ -135,4 +152,61 @@ export async function updateUserRole(
     role: newRole,
     notifications: arrayUnion(notification),
   });
+}
+
+/**
+ * Creates a new user in Firebase Auth and adds their profile to Firestore.
+ * If Firestore write fails, deletes the created Auth user to roll back.
+ * @param {string} username - User's display name.
+ * @param {string} email - User's email address.
+ * @param {string} password - User's login password.
+ * @param {string} role - User's role.
+ */
+export async function createNewUser(username, email, password, role) {
+  if (!username) throw new Error("Username is required.");
+  if (!email) throw new Error("Email is required.");
+  if (!password) throw new Error("Password is required.");
+  if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+
+  let secondaryApp;
+  if (getApps().some((a) => a.name === "secondary")) {
+    secondaryApp = getApp("secondary");
+  } else {
+    secondaryApp = initializeApp(firebaseConfig, "secondary");
+  }
+  const secondaryAuth = getAuth(secondaryApp);
+
+  let userCredential = null;
+  try {
+    userCredential = await createUserWithEmailAndPassword(
+      secondaryAuth,
+      email.trim(),
+      password
+    );
+    const authUser = userCredential.user;
+
+    const newUserProfile = {
+      uid: authUser.uid,
+      email: email.trim().toLowerCase(),
+      username: username.trim(),
+      role: role,
+      canViewHistory: role === "admin",
+      notifications: [],
+      createdAt: new Date().toISOString(),
+    };
+
+    await addDoc(collection(db, "users"), newUserProfile);
+    await secondarySignOut(secondaryAuth);
+    return true;
+  } catch (error) {
+    if (userCredential && userCredential.user) {
+      try {
+        await userCredential.user.delete();
+      } catch (deleteError) {
+        console.error("Failed to delete auth user during rollback:", deleteError);
+      }
+      await secondarySignOut(secondaryAuth);
+    }
+    throw error;
+  }
 }
