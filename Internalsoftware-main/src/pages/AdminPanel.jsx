@@ -2,11 +2,7 @@ import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import { db } from "../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
-import {
-  toggleHistoryAccess,
-  updateUserRole,
-  createUser,
-} from "../services/userService";
+import { toggleHistoryAccess, updateUserRole } from "../services/userService";
 import { toast } from "react-toastify";
 import useAuth from "../hooks/useAuth";
 
@@ -14,14 +10,6 @@ export default function AdminPanel() {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newUser, setNewUser] = useState({
-    email: "",
-    username: "",
-    role: "user",
-    canViewHistory: false,
-    password: "",
-  });
 
   useEffect(() => {
     // Set up a real-time listener for all user profiles
@@ -72,28 +60,6 @@ export default function AdminPanel() {
     }
   };
 
-  const handleCreateUser = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await createUser(newUser);
-      if (res.created) {
-        toast.success("User created successfully.");
-        setNewUser({
-          email: "",
-          username: "",
-          role: "user",
-          canViewHistory: false,
-        });
-        setShowAddForm(false);
-      } else if (res.reason === "exists") {
-        toast.info("A user with this email already exists.");
-      }
-    } catch (error) {
-      console.error("Error creating user:", error);
-      toast.error("Failed to create user.");
-    }
-  };
-
   return (
     <>
       <Navbar />
@@ -134,126 +100,6 @@ export default function AdminPanel() {
             Manage user roles and toggle eligibility for viewing the History
             page.
           </p>
-
-          <div style={{ marginBottom: 18 }}>
-            <button
-              onClick={() => setShowAddForm((s) => !s)}
-              style={{
-                padding: "8px 12px",
-                borderRadius: 8,
-                background: "#0ea5e9",
-                color: "white",
-                border: "none",
-                cursor: "pointer",
-                fontWeight: 700,
-              }}
-            >
-              {showAddForm ? "Cancel" : "+ Add User"}
-            </button>
-          </div>
-
-          {showAddForm && (
-            <form onSubmit={handleCreateUser} style={{ marginBottom: 20 }}>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                }}
-              >
-                <input
-                  required
-                  type="email"
-                  placeholder="Email"
-                  value={newUser.email}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, email: e.target.value })
-                  }
-                  style={{
-                    padding: 8,
-                    borderRadius: 6,
-                    border: "1px solid #cbd5e1",
-                    minWidth: 220,
-                  }}
-                />
-                <input
-                  type="text"
-                  placeholder="Username"
-                  value={newUser.username}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, username: e.target.value })
-                  }
-                  style={{
-                    padding: 8,
-                    borderRadius: 6,
-                    border: "1px solid #cbd5e1",
-                    minWidth: 180,
-                  }}
-                />
-                <input
-                  required
-                  type="password"
-                  placeholder="Password"
-                  value={newUser.password}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, password: e.target.value })
-                  }
-                  style={{
-                    padding: 8,
-                    borderRadius: 6,
-                    border: "1px solid #cbd5e1",
-                    minWidth: 180,
-                  }}
-                />
-                <select
-                  value={newUser.role}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, role: e.target.value })
-                  }
-                  style={{
-                    padding: 8,
-                    borderRadius: 6,
-                    border: "1px solid #cbd5e1",
-                  }}
-                >
-                  <option value="user">User</option>
-                  <option value="field_officer">Field Officer</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Admin</option>
-                </select>
-                <label
-                  style={{ display: "flex", gap: 6, alignItems: "center" }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={!!newUser.canViewHistory}
-                    onChange={(e) =>
-                      setNewUser({
-                        ...newUser,
-                        canViewHistory: e.target.checked,
-                      })
-                    }
-                  />
-                  Can view history
-                </label>
-                <button
-                  type="submit"
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    background: "#16a34a",
-                    color: "white",
-                    border: "none",
-                    cursor: "pointer",
-                    fontWeight: 700,
-                  }}
-                >
-                  Create
-                </button>
-              </div>
-            </form>
-          )}
 
           {loading ? (
             <div

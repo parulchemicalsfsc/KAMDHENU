@@ -1,4 +1,7 @@
-import { db } from "../firebase";
+import {
+  db,
+  auth as firebaseAuth /* app exported separately */,
+} from "../firebase";
 import {
   doc,
   updateDoc,
@@ -8,6 +11,7 @@ import {
   getDocs,
   arrayUnion,
 } from "firebase/firestore";
+import app from "../firebase";
 
 /**
  * Transition a user to the Manager role when they start a demo.
@@ -131,43 +135,4 @@ export async function updateUserRole(
     role: newRole,
     notifications: arrayUnion(notification),
   });
-}
-
-/**
- * Create a new user document in Firestore (does NOT create an Auth user).
- * @param {{email:string, username?:string, role?:string, canViewHistory?:boolean}} userData
- */
-export async function createUser(userData) {
-  if (!userData || !userData.email) throw new Error("User email is required.");
-
-  const normalizedEmail = (userData.email || "").trim().toLowerCase();
-
-  const usersCol = collection(db, "users");
-
-  const docRef = await getDocs(
-    query(usersCol, where("email", "==", normalizedEmail)),
-  );
-
-  if (!docRef.empty) {
-    // User already exists
-    return { created: false, reason: "exists" };
-  }
-
-  const payload = {
-    email: normalizedEmail,
-    username: userData.username || "",
-    displayName: userData.username || "",
-    role: userData.role || "user",
-    canViewHistory: !!userData.canViewHistory,
-    // Note: storing plaintext password is insecure; storing per user request
-    password: userData.password || null,
-    createdAt: Date.now(),
-    notifications: [],
-  };
-
-  // Using updateDoc requires a doc ref; use add via collection(). Firestore web v9: addDoc
-  const { addDoc } = await import("firebase/firestore");
-  const added = await addDoc(usersCol, payload);
-
-  return { created: true, id: added.id };
 }
