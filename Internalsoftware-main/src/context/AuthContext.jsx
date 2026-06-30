@@ -102,6 +102,22 @@ export function AuthProvider({ children }) {
               snapshotRef,
               async (snapshot) => {
                 const data = snapshot.data();
+                if (data && data.isDeleted) {
+                  toast.error("Your account has been deactivated. Please contact support.", {
+                    toastId: "account-deactivated-toast",
+                  });
+                  try {
+                    await signOut(auth);
+                  } catch (err) {
+                    console.error("Error signing out deleted user:", err);
+                  }
+                  setUser(null);
+                  setProfile(null);
+                  setRole("user");
+                  setCanViewHistory(false);
+                  setLoading(false);
+                  return;
+                }
                 const normalizedRole =
                   typeof data.role === "string"
                     ? data.role.trim().toLowerCase()

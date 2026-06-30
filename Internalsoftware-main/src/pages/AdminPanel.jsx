@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import { db } from "../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
-import { toggleHistoryAccess, updateUserRole, createNewUser } from "../services/userService";
+import { toggleHistoryAccess, updateUserRole, createNewUser, softDeleteUser } from "../services/userService";
 import { toast } from "react-toastify";
 import useAuth from "../hooks/useAuth";
 
@@ -68,7 +68,7 @@ export default function AdminPanel() {
           }))
           .filter((u) => {
             const email = (u.email || "").trim().toLowerCase();
-            return u.role !== "admin" && email !== "admin@gmail.com";
+            return u.role !== "admin" && email !== "admin@gmail.com" && !u.isDeleted;
           });
         // Sort users by email for structured display
         usersList.sort((a, b) => (a.email || "").localeCompare(b.email || ""));
@@ -102,6 +102,22 @@ export default function AdminPanel() {
     } catch (error) {
       console.error("Error toggling history access:", error);
       toast.error("Failed to update history access.");
+    }
+  };
+
+  const handleDeleteUser = async (userId, displayName) => {
+    if (
+      window.confirm(
+        `Are you sure you want to delete user "${displayName}"? They will not be able to log in and will be hidden from the admin panel.`
+      )
+    ) {
+      try {
+        await softDeleteUser(userId);
+        toast.success("User deleted successfully!");
+      } catch (error) {
+        console.error("Error deleting user:", error);
+        toast.error("Failed to delete user.");
+      }
     }
   };
 
@@ -377,6 +393,7 @@ export default function AdminPanel() {
                     >
                       Eligible for History Page
                     </th>
+                    <th style={{ padding: "12px 16px" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -440,6 +457,28 @@ export default function AdminPanel() {
                           />
                           {u.canViewHistory ? "Authorized" : "Not Allowed"}
                         </label>
+                      </td>
+                      <td style={{ padding: "16px 16px" }}>
+                        <button
+                          onClick={() => handleDeleteUser(u.id, u.username || u.email)}
+                          style={{
+                            background: "#dc2626",
+                            color: "#fff",
+                            padding: "8px 16px",
+                            borderRadius: 8,
+                            border: "none",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            fontSize: "0.9rem",
+                            transition: "background 0.2s, transform 0.1s"
+                          }}
+                          onMouseOver={(e) => e.target.style.background = "#b91c1c"}
+                          onMouseOut={(e) => e.target.style.background = "#dc2626"}
+                          onMouseDown={(e) => e.target.style.transform = "scale(0.95)"}
+                          onMouseUp={(e) => e.target.style.transform = "scale(1)"}
+                        >
+                          🗑️ Delete
+                        </button>
                       </td>
                     </tr>
                   ))}

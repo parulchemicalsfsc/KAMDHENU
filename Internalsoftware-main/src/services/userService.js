@@ -78,8 +78,13 @@ export async function addFieldOfficer(managerUid, officerEmail, managerEmail) {
     return false; // User not found
   }
 
-  // Update the target user's role to 'field_officer' and set relation
   const officerDoc = querySnapshot.docs[0];
+  const officerData = officerDoc.data();
+  if (officerData && officerData.isDeleted) {
+    return false; // Treat as not found / cannot add a deleted user
+  }
+
+  // Update the target user's role to 'field_officer' and set relation
   const notification = {
     id: Math.random().toString(36).substring(2, 9),
     title: "Role Assigned",
@@ -209,4 +214,17 @@ export async function createNewUser(username, email, password, role) {
     }
     throw error;
   }
+}
+
+/**
+ * Soft delete a user by setting isDeleted to true.
+ * @param {string} userDocId - The Firestore document ID of the user.
+ */
+export async function softDeleteUser(userDocId) {
+  if (!userDocId) throw new Error("User Document ID is required.");
+
+  const userRef = doc(db, "users", userDocId);
+  await updateDoc(userRef, {
+    isDeleted: true,
+  });
 }
