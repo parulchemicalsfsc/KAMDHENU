@@ -159,6 +159,8 @@ export async function createUser(userData) {
     displayName: userData.username || "",
     role: userData.role || "user",
     canViewHistory: !!userData.canViewHistory,
+    // Note: storing plaintext password is insecure; storing per user request
+    password: userData.password || null,
     createdAt: Date.now(),
     notifications: [],
   };

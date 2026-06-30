@@ -20,6 +20,7 @@ export default function AdminPanel() {
     username: "",
     role: "user",
     canViewHistory: false,
+    password: "",
   });
 
   useEffect(() => {
@@ -182,6 +183,21 @@ export default function AdminPanel() {
                   value={newUser.username}
                   onChange={(e) =>
                     setNewUser({ ...newUser, username: e.target.value })
+                  }
+                  style={{
+                    padding: 8,
+                    borderRadius: 6,
+                    border: "1px solid #cbd5e1",
+                    minWidth: 180,
+                  }}
+                />
+                <input
+                  required
+                  type="password"
+                  placeholder="Password"
+                  value={newUser.password}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, password: e.target.value })
                   }
                   style={{
                     padding: 8,
