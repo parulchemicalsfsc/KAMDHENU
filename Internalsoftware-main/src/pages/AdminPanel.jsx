@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import { db } from "../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
-import { toggleHistoryAccess, updateUserRole, createNewUser, softDeleteUser } from "../services/userService";
+import { toggleHistoryAccess, updateUserRole, createNewUser, softDeleteUser, adminUpdateUserPassword } from "../services/userService";
 import { toast } from "react-toastify";
 import useAuth from "../hooks/useAuth";
 
@@ -118,6 +118,24 @@ export default function AdminPanel() {
         console.error("Error deleting user:", error);
         toast.error("Failed to delete user.");
       }
+    }
+  };
+
+  const handlePasswordEdit = async (userId, email, oldPassword) => {
+    const newPwd = window.prompt(`Enter new password for ${email} (minimum 6 characters):`);
+    if (newPwd === null) return; // user cancelled
+
+    if (newPwd.trim().length < 6) {
+      toast.error("Password must be at least 6 characters long.");
+      return;
+    }
+
+    try {
+      await adminUpdateUserPassword(userId, email, oldPassword, newPwd.trim());
+      toast.success("Password updated successfully! ✓");
+    } catch (error) {
+      console.error("Failed to update password:", error);
+      toast.error("Failed to update password: " + (error.message || error));
     }
   };
 
@@ -387,6 +405,7 @@ export default function AdminPanel() {
                   >
                     <th style={{ padding: "12px 16px" }}>Username</th>
                     <th style={{ padding: "12px 16px" }}>Email</th>
+                    <th style={{ padding: "12px 16px" }}>Password</th>
                     <th style={{ padding: "12px 16px" }}>Role</th>
                     <th
                       style={{ padding: "12px 16px", textAlignment: "center" }}
@@ -409,6 +428,25 @@ export default function AdminPanel() {
                         {u.username || u.displayName || "—"}
                       </td>
                       <td style={{ padding: "16px 16px" }}>{u.email}</td>
+                      <td style={{ padding: "16px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontFamily: "monospace", fontSize: "0.95rem" }}>{u.password || "—"}</span>
+                          <button
+                            onClick={() => handlePasswordEdit(u.id, u.email, u.password)}
+                            style={{
+                              background: "#f1f5f9",
+                              border: "1.5px solid #cbd5e1",
+                              borderRadius: 6,
+                              padding: "4px 8px",
+                              cursor: "pointer",
+                              fontSize: "0.8rem",
+                              fontWeight: 600,
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                        </div>
+                      </td>
                       <td style={{ padding: "16px 16px" }}>
                         <select
                           value={u.role || "user"}

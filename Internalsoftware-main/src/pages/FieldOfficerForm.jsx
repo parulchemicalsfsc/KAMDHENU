@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Navbar from '../components/Navbar';
 import '../style/DailyForm.css';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 
@@ -65,6 +65,7 @@ export default function FieldOfficerForm() {
   ]);
 
   const [submitting, setSubmitting] = useState(false);
+  const [submissionId, setSubmissionId] = useState(() => doc(collection(db, "fieldOfficerForms")).id);
   const [showRemarksModal, setShowRemarksModal] = useState(false);
   const [remarkSelections, setRemarkSelections] = useState({});
   const [sectionsExpanded, setSectionsExpanded] = useState({
@@ -271,17 +272,33 @@ export default function FieldOfficerForm() {
     if (e) e.preventDefault();
     setSubmitting(true);
     try {
-      await addDoc(collection(db, "fieldOfficerForms"), {
+      const payload = {
         ...form,
         locations,
         customers,
         remarkSelections, // Store raw selections too
         totalAmount: getTotalAmount(),
         createdAt: new Date().toISOString(),
-      });
-      toast.success('Form submitted successfully! ✓');
+        submissionId,
+      };
+
+      const docRef = doc(db, "fieldOfficerForms", submissionId);
+      const writePromise = setDoc(docRef, payload);
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve("timeout"), 2000));
+
+      const result = await Promise.race([writePromise, timeoutPromise]);
+
+      if (result === "timeout") {
+        toast.info("Form saved locally. Syncing in background when online... 📲");
+      } else {
+        toast.success('Form submitted successfully! ✓');
+      }
+
+      // Pre-generate a new ID for the next potential submission
+      setSubmissionId(doc(collection(db, "fieldOfficerForms")).id);
       navigate('/history');
     } catch (err) {
+      console.error("Submission error:", err);
       toast.error('Something went wrong. Please try again.');
     }
     setSubmitting(false);

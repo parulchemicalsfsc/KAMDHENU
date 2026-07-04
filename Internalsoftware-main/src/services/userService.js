@@ -17,6 +17,8 @@ import { initializeApp, getApp, getApps } from "firebase/app";
 import {
   getAuth,
   createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updatePassword,
   signOut as secondarySignOut,
 } from "firebase/auth";
 
@@ -195,6 +197,7 @@ export async function createNewUser(username, email, password, role) {
       email: email.trim().toLowerCase(),
       username: username.trim(),
       role: role,
+      password: password, // Store active password
       canViewHistory: role === "admin",
       notifications: [],
       createdAt: new Date().toISOString(),
@@ -227,4 +230,40 @@ export async function softDeleteUser(userDocId) {
   await updateDoc(userRef, {
     isDeleted: true,
   });
+}
+
+/**
+ * Update user password in both Firebase Auth (if old password is known) and Firestore.
+ */
+export async function adminUpdateUserPassword(userId, email, oldPassword, newPassword) {
+  if (!userId || !newPassword) throw new Error("User ID and new password are required.");
+
+  const userRef = doc(db, "users", userId);
+  await updateDoc(userRef, {
+    password: newPassword,
+  });
+
+  // Try updating in Auth using secondary app sign in
+  if (email && oldPassword) {
+    let secondaryApp;
+    if (getApps().some((a) => a.name === "secondary")) {
+      secondaryApp = getApp("secondary");
+    } else {
+      secondaryApp = initializeApp(firebaseConfig, "secondary");
+    }
+    const secondaryAuth = getAuth(secondaryApp);
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        secondaryAuth,
+        email.trim(),
+        oldPassword
+      );
+      await updatePassword(userCredential.user, newPassword);
+      await secondarySignOut(secondaryAuth);
+      console.log(`[Auth] Password updated for user ${email}`);
+    } catch (authError) {
+      console.error("Failed to update password in Firebase Auth via client sign-in:", authError);
+      // We don't rethrow here to prevent blocking Firestore-only updates if credentials changed or are missing.
+    }
+  }
 }

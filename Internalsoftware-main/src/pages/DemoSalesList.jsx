@@ -91,6 +91,7 @@ const initialPaymentEntry = {
   mode: "",
   givenBy: "",
   takenBy: "",
+  upiTransactionId: "",
 };
 
 const makeCustomerDocId = (customer, villageId) => {
@@ -135,6 +136,8 @@ const DemoSalesList = () => {
   // New: Payment collection
   const [paymentsCollected, setPaymentsCollected] = useState([]);
   const [paymentInput, setPaymentInput] = useState(initialPaymentEntry);
+  const [submissionId, setSubmissionId] = useState(() => doc(collection(db, "demoForms")).id);
+  const [showUpiQrModal, setShowUpiQrModal] = useState(false);
 
   // State for new village input
   const [newVillageName, setNewVillageName] = useState("");
@@ -177,6 +180,9 @@ const DemoSalesList = () => {
   const handlePaymentInput = (e) => {
     const { name, value } = e.target;
     setPaymentInput((prev) => ({ ...prev, [name]: value }));
+    if (name === "mode" && value === "UPI") {
+      setShowUpiQrModal(true);
+    }
   };
 
   // Add payment
@@ -195,6 +201,10 @@ const DemoSalesList = () => {
       toast.error("Please select payment mode");
       return;
     }
+    if (paymentInput.mode === "UPI" && !paymentInput.upiTransactionId.trim()) {
+      toast.error("Please enter UPI Transaction ID");
+      return;
+    }
     if (!paymentInput.givenBy) {
       toast.error("Please enter who gave the payment");
       return;
@@ -210,6 +220,7 @@ const DemoSalesList = () => {
         mode: paymentInput.mode,
         givenBy: paymentInput.givenBy,
         takenBy: paymentInput.takenBy,
+        upiTransactionId: paymentInput.mode === "UPI" ? paymentInput.upiTransactionId.trim() : "",
       },
     ]);
     setPaymentInput(initialPaymentEntry);
@@ -527,6 +538,9 @@ const DemoSalesList = () => {
   const handleCustomerInput = (e) => {
     const { name, value } = e.target;
     setCustomerInput((prev) => ({ ...prev, [name]: value }));
+    if (name === "paymentMethod" && value === "UPI") {
+      setShowUpiQrModal(true);
+    }
   };
 
   const handleCustomerPhotoChange = async (e) => {
@@ -880,14 +894,15 @@ const DemoSalesList = () => {
     }
 
     try {
-      const docRef = await addDoc(collection(db, "demosales"), {
+      const newDemoId = doc(collection(db, "demosales")).id;
+      await setDoc(doc(db, "demosales", newDemoId), {
         village: villageName,
         customers: [],
         status: "active",
         createdAt: new Date(),
       });
 
-      setDemoId(docRef.id);
+      setDemoId(newDemoId);
 
       // Ensure the current user is elevated to Manager when a demo starts.
       if (currentUserDocId) {
@@ -1707,27 +1722,35 @@ const DemoSalesList = () => {
 
     setSubmitting(true);
     try {
-      await addDoc(collection(db, "demoForms"), {
+      const payloadForm = {
         ...demoInfo,
         customers,
         stockTaken,
         stockAtDairy,
         stockReturned,
+        paymentsCollected, // Save payments collected to database
         createdAt: Timestamp.now(),
-      });
+        submissionId,
+      };
 
-      await addDoc(collection(db, "demoHistory"), {
+      const payloadHistory = {
         ...demoInfo,
         customers,
         stockTaken,
         stockAtDairy,
         stockReturned,
+        paymentsCollected, // Save payments collected to database
         savedAt: Timestamp.now(),
-      });
+        submissionId,
+      };
 
+      const write1 = setDoc(doc(db, "demoForms", submissionId), payloadForm);
+      const write2 = setDoc(doc(db, "demoHistory", submissionId), payloadHistory);
+
+      let write3 = Promise.resolve();
       // Clear stocks in Firebase after successful submission
       if (selectedVillageId) {
-        await setDoc(
+        write3 = setDoc(
           doc(db, "villageStocks", selectedVillageId),
           {
             stocks: [],
@@ -1738,7 +1761,18 @@ const DemoSalesList = () => {
         );
       }
 
-      setMsg("Demo sales record submitted and saved to history!");
+      const allWrites = Promise.all([write1, write2, write3]);
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve("timeout"), 2000));
+
+      const result = await Promise.race([allWrites, timeoutPromise]);
+
+      if (result === "timeout") {
+        setMsg("Demo sales record saved locally. Syncing in background when online... 📲");
+      } else {
+        setMsg("Demo sales record submitted and saved to history!");
+      }
+
+      // Reset form states
       setDemoInfo(initialDemoInfo);
       setCustomers([]);
       setCustomerInput(initialCustomer);
@@ -1746,7 +1780,10 @@ const DemoSalesList = () => {
       setStockAtDairy([]);
       setStockReturned([]);
       setStockInput(initialStock);
-      //setEditingIdx(null);
+      setPaymentsCollected([]); // Clear payments collected locally
+      
+      // Pre-generate a new ID for the next potential submission
+      setSubmissionId(doc(collection(db, "demoForms")).id);
     } catch (err) {
       setSubmitError("Error saving to Firestore: " + err.message);
     } finally {
@@ -3727,6 +3764,24 @@ ${paymentLines || "—"}
                             />
                             <span>CASH</span>
                           </label>
+                          <label
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              cursor: "pointer",
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="paymentMethod"
+                              value="UPI"
+                              checked={customerInput.paymentMethod === "UPI"}
+                              onChange={handleCustomerInput}
+                              onClick={() => setShowUpiQrModal(true)}
+                            />
+                            <span>UPI</span>
+                          </label>
                         </div>
                       </div>
 
@@ -3827,24 +3882,7 @@ ${paymentLines || "—"}
                         )}
                       </div>
 
-                      <button
-                        type="button"
-                        className="btn-outline"
-                        style={{
-                          padding: "8px 8px",
-                          fontWeight: 800,
-                          fontSize: "1em",
-                          borderRadius: 8,
-                          height: "40px",
-                          background: "#2563eb",
-                          color: "#fff",
-                          border: "none",
-                        }}
-                      >
-                        {" "}
-                        Send OTP
-                      </button>
-
+                      
                       <div
                         style={{
                           minWidth: 120,
@@ -5177,6 +5215,20 @@ ${paymentLines || "—"}
                         <option value="Card">Card</option>
                       </select>
                     </div>
+                    {paymentInput.mode === "UPI" && (
+                      <div style={{ flex: 1, minWidth: 150 }}>
+                        <label>UPI Transaction ID*</label>
+                        <input
+                          type="text"
+                          name="upiTransactionId"
+                          value={paymentInput.upiTransactionId || ""}
+                          onChange={handlePaymentInput}
+                          placeholder="Enter UPI Txn ID"
+                          style={{ width: "100%" }}
+                          required
+                        />
+                      </div>
+                    )}
                     <div style={{ flex: 1, minWidth: 120 }}>
                       <label>Given By*</label>
                       <input
@@ -5260,7 +5312,14 @@ ${paymentLines || "—"}
                                   ₹{parseFloat(p.amount).toFixed(2)}
                                 </strong>
                               </td>
-                              <td>{p.mode}</td>
+                               <td>
+                                {p.mode}
+                                {p.mode === "UPI" && p.upiTransactionId && (
+                                  <div style={{ fontSize: "0.85em", color: "#6b7280", marginTop: 2 }}>
+                                    Txn ID: {p.upiTransactionId}
+                                  </div>
+                                )}
+                              </td>
                               <td>{p.givenBy}</td>
                               <td>{p.takenBy}</td>
                               <td>
@@ -5641,6 +5700,127 @@ ${paymentLines || "—"}
           </div>
         </form>
       </div>
+
+      {showUpiQrModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(0, 8, 20, 0.6)",
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            style={{
+              background: "#f0f4f9",
+              borderRadius: 24,
+              padding: "32px 24px",
+              width: "360px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+              fontFamily: "system-ui, -apple-system, sans-serif",
+            }}
+          >
+            {/* Header: Circle N and Name */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 20,
+                alignSelf: "flex-start",
+                paddingLeft: 12,
+              }}
+            >
+              <div
+                style={{
+                  background: "#009688",
+                  color: "#fff",
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: "bold",
+                  fontSize: "1.25rem",
+                }}
+              >
+                N
+              </div>
+              <span style={{ fontSize: "1.4rem", fontWeight: "700", color: "#1e293b" }}>
+                Nimish Shah
+              </span>
+            </div>
+
+            {/* QR Card Container */}
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: 20,
+                padding: "24px 16px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                width: "100%",
+                boxSizing: "border-box",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+              }}
+            >
+              <img
+                src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi%3A%2F%2Fpay%3Fpa%3Dparulchemicals2016%40oksbi%26pn%3DNimish%2520Shah"
+                alt="UPI QR Code"
+                style={{
+                  width: 200,
+                  height: 200,
+                  objectFit: "contain",
+                }}
+              />
+              <span style={{ fontSize: "0.95rem", color: "#64748b", fontWeight: "600", marginTop: 16 }}>
+                UPI ID: parulchemicals2016@oksbi
+              </span>
+            </div>
+
+            {/* Subtext */}
+            <div style={{ fontSize: "0.95rem", color: "#64748b", margin: "16px 0", fontWeight: "600" }}>
+              Scan to pay with any UPI app
+            </div>
+
+            {/* Cancel Button */}
+            <button
+              type="button"
+              onClick={() => setShowUpiQrModal(false)}
+              style={{
+                background: "#ef4444",
+                color: "#fff",
+                border: "none",
+                borderRadius: 12,
+                padding: "12px 24px",
+                fontSize: "1rem",
+                fontWeight: "700",
+                cursor: "pointer",
+                width: "100%",
+                textAlign: "center",
+                boxShadow: "0 2px 4px rgba(239, 68, 68, 0.2)",
+                transition: "all 0.2s",
+              }}
+              onMouseOver={(e) => (e.target.style.background = "#dc2626")}
+              onMouseOut={(e) => (e.target.style.background = "#ef4444")}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };

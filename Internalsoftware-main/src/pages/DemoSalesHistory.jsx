@@ -461,6 +461,19 @@ export default function DemoSalesHistory() {
                 </ul>
               </div>
               <div style={{ marginTop: 8 }}>
+                <b>Payments Collected:</b>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {(selected.paymentsCollected || []).map((p, i) => (
+                    <li key={i}>
+                      ₹{parseFloat(p.amount || 0).toFixed(2)} ({p.mode}
+                      {p.mode === "UPI" && p.upiTransactionId ? ` - Txn ID: ${p.upiTransactionId}` : ""}) 
+                      - Given by: {p.givenBy || "—"}, Taken by: {p.takenBy || "—"}
+                    </li>
+                  ))}
+                  {(!selected.paymentsCollected || selected.paymentsCollected.length === 0) && <li>—</li>}
+                </ul>
+              </div>
+              <div style={{ marginTop: 8 }}>
                 <b>Last Updated:</b> {selected.updatedAt ? (selected.updatedAt.toDate ? selected.updatedAt.toDate().toLocaleString() : new Date(selected.updatedAt * 1000).toLocaleString()) : (selected.createdAt ? (selected.createdAt.toDate ? selected.createdAt.toDate().toLocaleString() : new Date(selected.createdAt * 1000).toLocaleString()) : '—')}
               </div>
               {selected.comment && (
