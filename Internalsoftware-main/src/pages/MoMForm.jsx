@@ -1,176 +1,664 @@
 import React, { useState, useEffect } from "react";
 import { toast } from 'react-toastify';
 import { db } from "../firebase";
-import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { collection, addDoc, Timestamp, getDocs, orderBy, query } from "firebase/firestore";
 import Navbar from "../components/Navbar";
 import "../style/form.css";
 
+const participantsList = [
+  "JASH ILASARIYA", "SONAL MADAM", "BHAVIN PRAJAPATI", "MAULIC SHAH",
+  "JIGAR SHAH", "SHUBHAM", "MISTRY SIR", "JYOTIKA", "BHAVISHA",
+  "PARUL BEN", "MALA BEN", "PRIYANKA BEN", "OMKAR SIR", "SANKET SIR", "ALPESH SIR"
+];
 
-const participantsList = ["JASH ILASARIYA", "SONAL MADAM", "BHAVIN PRAJAPATI", "MAULIC SHAH", "JIGAR SHAH", "SHUBHAM", "MISTRY SIR", "JYOTIKA", "BHAVISHA", "PARUL BEN", "MALA BEN", "PRIYANKA BEN ", "OMKAR SIR", "SANKET SIR", "ALPESH SIR"];
+// ── Image compression helper ──────────────────────────────────────────────────
+const compressImage = (file, maxW = 800, maxH = 800, quality = 0.75) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round((h * maxW) / w); w = maxW; }
+        if (h > maxH) { w = Math.round((w * maxH) / h); h = maxH; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
-const MoMForm = () => {
-  const [date, setDate] = useState("");
-  const [location, setLocation] = useState({ lat: "", lng: "" });
-  const [participants, setParticipants] = useState([]);
-  const [manualParticipant, setManualParticipant] = useState("");
-  const [points, setPoints] = useState([]);
-  const [currentPoint, setCurrentPoint] = useState("");
-  const [summary, setSummary] = useState(null);
-
-const handleParticipantChange = (e) => {
-  const selectedOptions = Array.from(e.target.selectedOptions);
-  setParticipants(selectedOptions.map(option => option.value));
+// ── Styles ────────────────────────────────────────────────────────────────────
+const S = {
+  card: {
+    background: '#fff', borderRadius: 14,
+    boxShadow: '0 2px 16px rgba(37,99,235,0.07)',
+    border: '1px solid #e0eaff', padding: '24px 20px', marginBottom: 24,
+  },
+  label: { fontWeight: 700, color: '#174ea6', marginBottom: 6, display: 'block', fontSize: '0.9rem' },
+  input: {
+    width: '100%', borderRadius: 8, padding: '9px 12px',
+    border: '1.5px solid #b6c7e6', fontFamily: 'inherit',
+    fontSize: '0.95rem', boxSizing: 'border-box', outline: 'none',
+  },
+  btn: (bg) => ({
+    flex: 1, minWidth: 140, background: bg, color: '#fff',
+    border: 'none', borderRadius: 8, padding: '11px 16px',
+    fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem',
+    transition: 'opacity 0.2s',
+  }),
 };
 
+// ── Main Component ────────────────────────────────────────────────────────────
+const MoMForm = () => {
+  // Form state
+  const [meetingName, setMeetingName] = useState('');
+  const [date, setDate] = useState('');
+  const [location, setLocation] = useState({ lat: '', lng: '' });
+  const [participants, setParticipants] = useState([]);
+  const [manualParticipant, setManualParticipant] = useState('');
+  const [points, setPoints] = useState([]);
+  const [currentPoint, setCurrentPoint] = useState('');
+  const [summary, setSummary] = useState(null);
+  const [image, setImage] = useState(null);          // base64 compressed
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // History list state
+  const [momList, setMomList] = useState([]);
+  const [momLoading, setMomLoading] = useState(true);
+  const [expandedMomId, setExpandedMomId] = useState(null);
+
+  // ── Init ─────────────────────────────────────────────────────────────────
   useEffect(() => {
-    navigator.geolocation.getCurrentPosition((pos) => {
-      setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-    });
-    setDate(new Date().toISOString().split("T")[0]);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setLocation({ lat: pos.coords.latitude.toFixed(5), lng: pos.coords.longitude.toFixed(5) }),
+      () => {}
+    );
+    setDate(new Date().toISOString().split('T')[0]);
+    fetchMomList();
   }, []);
 
+  // ── Fetch all saved MoMs ─────────────────────────────────────────────────
+  const fetchMomList = async () => {
+    setMomLoading(true);
+    try {
+      const q = query(collection(db, 'demo_moms'), orderBy('timestamp', 'desc'));
+      const snap = await getDocs(q);
+      setMomList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) {
+      console.error('Fetch MoM list error:', e);
+    }
+    setMomLoading(false);
+  };
+
+  // ── Image upload + compress ──────────────────────────────────────────────
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error('Image too large (>10MB)'); return; }
+    setUploadingImage(true);
+    try {
+      const compressed = await compressImage(file);
+      setImage(compressed);
+      setImagePreview(compressed);
+      toast.success('Photo loaded & compressed ✓');
+    } catch {
+      toast.error('Image processing failed');
+    }
+    setUploadingImage(false);
+  };
+
+  // ── Participants ──────────────────────────────────────────────────────────
+  const handleParticipantChange = (e) => {
+    setParticipants(Array.from(e.target.selectedOptions).map(o => o.value));
+  };
+
+  // ── Discussion Points ─────────────────────────────────────────────────────
   const handleAddPoint = () => {
     if (currentPoint.trim()) {
-      setPoints([...points, currentPoint.trim()]);
-      setCurrentPoint("");
+      setPoints(prev => [...prev, currentPoint.trim()]);
+      setCurrentPoint('');
     }
   };
 
-  const generateSummary = () => {
-    const discussion = points.map((pt, i) => `${i + 1}. ${pt}`).join("\n");
-    const actions = points
-      .filter((pt) => pt.toLowerCase().includes("action") || pt.toLowerCase().includes("to do"))
-      .map((pt) => `- ${pt}`)
-      .join("\n");
+  const handleRemovePoint = (i) => setPoints(prev => prev.filter((_, idx) => idx !== i));
 
+  // ── Generate Summary ──────────────────────────────────────────────────────
+  const generateSummary = () => {
+    if (points.length === 0) { toast.warn('Add at least one discussion point first'); return; }
+    const discussion = points.map((pt, i) => `${i + 1}. ${pt}`).join('\n');
+    const actions = points
+      .filter(pt => pt.toLowerCase().includes('action') || pt.toLowerCase().includes('to do') || pt.toLowerCase().includes('todo'))
+      .map(pt => `• ${pt}`)
+      .join('\n');
     setSummary({ discussion, actions });
+    toast.success('Summary generated!');
   };
 
+  // ── Save to Firestore ─────────────────────────────────────────────────────
   const saveToFirestore = async () => {
-    const payload = {
+    if (!meetingName.trim()) { toast.error('Please enter a meeting name'); return; }
+    if (points.length === 0) { toast.error('Add at least one discussion point'); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        meetingName: meetingName.trim(),
+        date,
+        location,
+        participants,
+        manualParticipant,
+        points,
+        summary,
+        image: image || null,
+        timestamp: Timestamp.now(),
+      };
+      await addDoc(collection(db, 'demo_moms'), payload);
+      toast.success('Minutes of Meeting saved! ✓');
+      // Reset form
+      setMeetingName(''); setParticipants([]); setManualParticipant('');
+      setPoints([]); setSummary(null); setImage(null); setImagePreview(null);
+      setDate(new Date().toISOString().split('T')[0]);
+      await fetchMomList();
+    } catch (e) {
+      toast.error('Save failed: ' + e.message);
+    }
+    setSaving(false);
+  };
+
+  // ── Generate PDF ──────────────────────────────────────────────────────────
+  const generatePDF = async (momData) => {
+    // momData = past record, or null = use current form state
+    const data = momData || {
+      meetingName,
       date,
       location,
       participants,
       manualParticipant,
       points,
       summary,
-      timestamp: Timestamp.now()
+      image,
     };
-    await addDoc(collection(db, "demo_moms"), payload);
-    toast.success('Minutes of Meeting saved! ✓');
+
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+      let y = 16;
+
+      // Header
+      doc.setFillColor(13, 110, 253);
+      doc.rect(0, 0, 210, 28, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Minutes of Meeting', 14, 18);
+      y = 36;
+
+      // Meeting Name
+      doc.setTextColor(13, 110, 253);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text(data.meetingName || 'Untitled Meeting', 14, y); y += 8;
+
+      // Date & Location
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 80, 80);
+      doc.text(`Date: ${data.date || '-'}`, 14, y); y += 6;
+      if (data.location?.lat) {
+        doc.text(`Location: ${data.location.lat}, ${data.location.lng}`, 14, y); y += 6;
+      }
+      y += 3;
+
+      // Divider line
+      doc.setDrawColor(200, 200, 230);
+      doc.line(14, y, 196, y); y += 6;
+
+      // Participants
+      const allP = [...(Array.isArray(data.participants) ? data.participants : []), data.manualParticipant]
+        .filter(Boolean);
+      if (allP.length > 0) {
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(13, 110, 253);
+        doc.setFontSize(11);
+        doc.text(`Participants (${allP.length}):`, 14, y); y += 6;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(10);
+        allP.forEach(p => {
+          if (y > 272) { doc.addPage(); y = 15; }
+          doc.text(`• ${p}`, 20, y); y += 5;
+        });
+        y += 3;
+      }
+
+      // Discussion Points
+      if ((data.points || []).length > 0) {
+        if (y > 250) { doc.addPage(); y = 15; }
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(13, 110, 253);
+        doc.setFontSize(11);
+        doc.text('Discussion Points:', 14, y); y += 6;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(10);
+        data.points.forEach((pt, i) => {
+          if (y > 272) { doc.addPage(); y = 15; }
+          const lines = doc.splitTextToSize(`${i + 1}. ${pt}`, 174);
+          doc.text(lines, 20, y);
+          y += lines.length * 5 + 2;
+        });
+        y += 3;
+      }
+
+      // Summary
+      if (data.summary?.discussion) {
+        if (y > 250) { doc.addPage(); y = 15; }
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(22, 101, 52);
+        doc.setFontSize(11);
+        doc.text('Meeting Summary:', 14, y); y += 6;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(10);
+        const sumLines = doc.splitTextToSize(data.summary.discussion, 174);
+        sumLines.forEach(line => {
+          if (y > 275) { doc.addPage(); y = 15; }
+          doc.text(line, 20, y); y += 5;
+        });
+        y += 3;
+      }
+
+      // Action Items
+      if (data.summary?.actions) {
+        if (y > 250) { doc.addPage(); y = 15; }
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(185, 28, 28);
+        doc.setFontSize(11);
+        doc.text('Action Items:', 14, y); y += 6;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(10);
+        const actLines = doc.splitTextToSize(data.summary.actions, 174);
+        actLines.forEach(line => {
+          if (y > 275) { doc.addPage(); y = 15; }
+          doc.text(line, 20, y); y += 5;
+        });
+      }
+
+      const fileName = `MoM_${(data.meetingName || 'meeting').replace(/\s+/g, '_')}_${data.date || ''}.pdf`;
+      doc.save(fileName);
+      toast.success('PDF exported! 📄');
+    } catch (e) {
+      console.error(e);
+      toast.error('PDF export failed: ' + e.message);
+    }
   };
 
-  const generatePDF = async () => {
-    const { default: jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
-    doc.setFontSize(14);
-    doc.text("Minutes of Meeting", 20, 20);
-    doc.setFontSize(10);
-    doc.text(`Date: ${date}`, 20, 30);
-    doc.text(`Location: ${location.lat}, ${location.lng}`, 20, 36);
-    doc.text(`Participants: ${[...participants, manualParticipant].filter(Boolean).join(", ")}`, 20, 42);
-    doc.text("Discussion Summary:", 20, 52);
-    doc.text(summary?.discussion || "", 20, 58);
-    doc.text("Action Items:", 20, 90);
-    doc.text(summary?.actions || "None", 20, 96);
-    doc.save("MoM.pdf");
-  };
+  // ── Accordion toggle ──────────────────────────────────────────────────────
+  const toggleMom = (id) => setExpandedMomId(prev => prev === id ? null : id);
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <> 
-    <Navbar />
+    <>
+      <Navbar />
+      <div style={{ padding: 'clamp(10px, 3vw, 24px)', background: '#f0f4ff', minHeight: '100vh' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
 
-      <div style={{ padding: "clamp(12px, 3vw, 24px)" }}>
-        <div style={{
-          maxWidth: 900, margin: "0 auto", background: "#f7fafd",
-          borderRadius: 18, border: "1px solid #d1e3f8",
-          boxShadow: "0 8px 32px rgba(13, 110, 253, 0.08)", overflow: "hidden"
-        }}>
+          {/* ═══ PAGE HEADER ═══ */}
           <div style={{
-            background: "linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%)",
-            padding: "20px 24px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center"
+            background: 'linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%)',
+            borderRadius: '16px 16px 0 0', padding: '20px 24px',
+            color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: 0,
           }}>
-            <h2 style={{ margin: 0, fontWeight: 700, fontSize: "1.5rem" }}>Minutes of Meeting</h2>
+            <div>
+              <h2 style={{ margin: 0, fontWeight: 800, fontSize: '1.5rem' }}>📋 Minutes of Meeting</h2>
+              <p style={{ margin: '4px 0 0', opacity: 0.8, fontSize: '0.88rem' }}>Create and manage meeting records</p>
+            </div>
           </div>
 
-          <div style={{ padding: "24px" }}>
-            <div className="section-card" style={{ marginBottom: 24, textAlign: 'left', borderRadius: 14, boxShadow: '0 2px 12px #2563eb11', background: '#fff', padding: '24px 18px' }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginBottom: 18 }}>
-                <div style={{ flex: 1, minWidth: 180 }}>
-                  <label style={{ fontWeight: 600, color: '#174ea6', marginBottom: 4, display: 'block' }}>Date</label>
-                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: '100%', borderRadius: 8, padding: 8, border: '1.5px solid #b6c7e6', fontFamily: 'inherit' }} />
+          <div style={{ background: '#f7fafd', borderRadius: '0 0 16px 16px', border: '1px solid #d1e3f8', borderTop: 'none', boxShadow: '0 8px 32px rgba(13,110,253,0.08)', padding: 24 }}>
+
+            {/* ═══ NEW MOM FORM ═══ */}
+            <div style={S.card}>
+              <h3 style={{ margin: '0 0 20px', color: '#174ea6', fontWeight: 800, fontSize: '1.05rem', borderBottom: '2px solid #e3f0fb', paddingBottom: 12 }}>
+                ✏️ New MoM Entry
+              </h3>
+
+              {/* Meeting Name */}
+              <div style={{ marginBottom: 18 }}>
+                <label style={S.label}>
+                  Meeting Name / Title <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={meetingName}
+                  onChange={e => setMeetingName(e.target.value)}
+                  placeholder="e.g. Weekly Sales Review, Monthly Planning..."
+                  style={{ ...S.input, fontSize: '1rem', fontWeight: 500 }}
+                />
+              </div>
+
+              {/* Date + Location */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 18 }}>
+                <div style={{ flex: 1, minWidth: 160 }}>
+                  <label style={S.label}>Date</label>
+                  <input type="date" value={date} onChange={e => setDate(e.target.value)} style={S.input} />
                 </div>
-                <div style={{ flex: 2, minWidth: 180 }}>
-                  <label style={{ fontWeight: 600, color: '#174ea6', marginBottom: 4, display: 'block' }}>Location</label>
-                  <div style={{ padding: "8px 12px", background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0", color: "#475569" }}>
-                    {location.lat ? `📍 ${location.lat}, ${location.lng}` : "Fetching location..."}
+                <div style={{ flex: 2, minWidth: 200 }}>
+                  <label style={S.label}>Location</label>
+                  <div style={{ padding: '9px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', color: '#475569', fontSize: '0.9rem' }}>
+                    {location.lat ? `📍 ${location.lat}, ${location.lng}` : '⏳ Fetching location...'}
                   </div>
                 </div>
               </div>
 
-              <div style={{ marginBottom: 24 }}>
-                <label style={{ fontWeight: 600, color: '#174ea6', marginBottom: 4, display: 'block' }}>Participants</label>
-                <select multiple value={participants} onChange={handleParticipantChange} style={{ width: '100%', borderRadius: 8, padding: 8, border: '1.5px solid #b6c7e6', fontFamily: 'inherit', minHeight: 120 }}>
-                  {participantsList.map((p) => (
+              {/* Image Upload */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={S.label}>📷 Meeting Photo</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+                  {/* Circle preview */}
+                  <div
+                    onClick={() => document.getElementById('mom-img-input').click()}
+                    style={{
+                      width: 76, height: 76, borderRadius: '50%',
+                      border: `2.5px ${imagePreview ? 'solid #3b82f6' : 'dashed #93c5fd'}`,
+                      background: imagePreview ? 'transparent' : '#eff6ff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      overflow: 'hidden', flexShrink: 0, cursor: 'pointer',
+                      boxShadow: imagePreview ? '0 2px 10px rgba(59,130,246,0.3)' : 'none',
+                      transition: 'box-shadow 0.2s',
+                    }}
+                  >
+                    {imagePreview
+                      ? <img src={imagePreview} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span style={{ fontSize: '2rem' }}>📷</span>
+                    }
+                  </div>
+                  <div>
+                    <input id="mom-img-input" type="file" accept="image/*" capture="environment" onChange={handleImageChange} style={{ display: 'none' }} />
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('mom-img-input').click()}
+                      disabled={uploadingImage}
+                      style={{ background: '#e0eaff', color: '#2563eb', border: '1.5px solid #93c5fd', borderRadius: 8, padding: '8px 18px', fontWeight: 700, cursor: 'pointer', fontSize: '0.88rem' }}
+                    >
+                      {uploadingImage ? '⏳ Processing...' : imagePreview ? '🔄 Change Photo' : '📷 Upload Photo'}
+                    </button>
+                    {imagePreview && (
+                      <button
+                        type="button"
+                        onClick={() => { setImage(null); setImagePreview(null); }}
+                        style={{ marginLeft: 8, background: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700, cursor: 'pointer', fontSize: '0.88rem' }}
+                      >✕ Remove</button>
+                    )}
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 5 }}>Auto-compressed • JPEG • Max 10MB</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Participants */}
+              <div style={{ marginBottom: 18 }}>
+                <label style={S.label}>👥 Participants <span style={{ fontWeight: 400, color: '#64748b' }}>(hold Ctrl/Cmd for multiple)</span></label>
+                <select
+                  multiple
+                  value={participants}
+                  onChange={handleParticipantChange}
+                  style={{ ...S.input, minHeight: 110, padding: 8 }}
+                >
+                  {participantsList.map(p => (
                     <option key={p} value={p}>{p}</option>
                   ))}
                 </select>
+                {participants.length > 0 && (
+                  <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    {participants.map(p => (
+                      <span key={p} style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 20, padding: '3px 10px', fontSize: '0.78rem', fontWeight: 700 }}>{p}</span>
+                    ))}
+                  </div>
+                )}
                 <input
                   type="text"
                   value={manualParticipant}
-                  placeholder="Add manual participant (comma separated)"
-                  onChange={(e) => setManualParticipant(e.target.value)}
-                  style={{ width: '100%', borderRadius: 8, padding: 8, border: '1.5px solid #b6c7e6', fontFamily: 'inherit', marginTop: 12 }}
+                  placeholder="Other participants (comma separated)..."
+                  onChange={e => setManualParticipant(e.target.value)}
+                  style={{ ...S.input, marginTop: 10 }}
                 />
               </div>
 
-              <div style={{ marginBottom: 24 }}>
-                <label style={{ fontWeight: 600, color: '#174ea6', marginBottom: 4, display: 'block' }}>Add Discussion Point</label>
-                <div style={{ display: "flex", gap: 12 }}>
+              {/* Discussion Points */}
+              <div style={{ marginBottom: 18 }}>
+                <label style={S.label}>📌 Discussion Points</label>
+                <div style={{ display: 'flex', gap: 10 }}>
                   <textarea
                     value={currentPoint}
-                    onChange={(e) => setCurrentPoint(e.target.value)}
-                    placeholder="Enter discussion point..."
-                    style={{ flex: 1, borderRadius: 8, padding: 12, border: '1.5px solid #b6c7e6', fontFamily: 'inherit', minHeight: 60 }}
+                    onChange={e => setCurrentPoint(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddPoint(); } }}
+                    placeholder="Type a discussion point... (press Enter to add)"
+                    style={{ flex: 1, borderRadius: 8, padding: 10, border: '1.5px solid #b6c7e6', fontFamily: 'inherit', minHeight: 52, resize: 'vertical', fontSize: '0.9rem' }}
                   />
-                  <button onClick={handleAddPoint} style={{ background: "#10b981", color: "#fff", border: "none", borderRadius: 8, padding: "0 24px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
-                    + Add
-                  </button>
+                  <button
+                    onClick={handleAddPoint}
+                    style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '0 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.9rem' }}
+                  >+ Add</button>
                 </div>
+
+                {points.length > 0 && (
+                  <div style={{ marginTop: 12, padding: '12px 16px', background: '#f0f7ff', borderRadius: 10, border: '1px solid #bfdbfe' }}>
+                    <div style={{ fontWeight: 700, color: '#1d4ed8', marginBottom: 8, fontSize: '0.88rem' }}>
+                      📌 {points.length} Discussion Point{points.length !== 1 ? 's' : ''} added
+                    </div>
+                    <ol style={{ margin: 0, paddingLeft: 18, color: '#334155' }}>
+                      {points.map((pt, i) => (
+                        <li key={i} style={{ marginBottom: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, fontSize: '0.88rem' }}>
+                          <span>{pt}</span>
+                          <button onClick={() => handleRemovePoint(i)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem', flexShrink: 0, lineHeight: 1 }}>✕</button>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
               </div>
 
-              {points.length > 0 && (
-                <div style={{ marginBottom: 24, padding: 16, background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
-                  <h4 style={{ margin: "0 0 12px 0", color: "#0f172a" }}>All Discussion Points</h4>
-                  <ul style={{ margin: 0, paddingLeft: 20, color: "#334155" }}>
-                    {points.map((pt, i) => (<li key={i} style={{ marginBottom: 8 }}>{pt}</li>))}
-                  </ul>
-                </div>
-              )}
-
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 32 }}>
-                <button onClick={generateSummary} style={{ flex: 1, minWidth: 150, background: "#3b82f6", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 600, cursor: "pointer" }}>
-                  Generate Summary
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 24 }}>
+                <button onClick={generateSummary} style={S.btn('#3b82f6')}>📊 Generate Summary</button>
+                <button onClick={saveToFirestore} disabled={saving} style={{ ...S.btn('#8b5cf6'), opacity: saving ? 0.7 : 1 }}>
+                  {saving ? '⏳ Saving...' : '💾 Save to Database'}
                 </button>
-                <button onClick={saveToFirestore} style={{ flex: 1, minWidth: 150, background: "#8b5cf6", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 600, cursor: "pointer" }}>
-                  Save to Database
-                </button>
-                <button onClick={generatePDF} style={{ flex: 1, minWidth: 150, background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 600, cursor: "pointer" }}>
-                  Export as PDF
-                </button>
+                <button onClick={() => generatePDF(null)} style={S.btn('#ef4444')}>📄 Export as PDF</button>
               </div>
 
+              {/* Summary Preview */}
               {summary && (
-                <div style={{ marginTop: 24, padding: 20, background: "#f0fdf4", border: "2px solid #22c55e", borderRadius: 12 }}>
-                  <h4 style={{ margin: "0 0 12px 0", color: "#166534" }}>Summary Preview:</h4>
-                  <p style={{ whiteSpace: "pre-line", color: "#15803d", fontSize: "0.95em", margin: 0 }}>{summary.discussion}</p>
-                  
-                  <h4 style={{ margin: "20px 0 12px 0", color: "#166534" }}>Action Items:</h4>
-                  <p style={{ whiteSpace: "pre-line", color: "#b91c1c", fontSize: "0.95em", margin: 0, fontWeight: 600 }}>{summary.actions || "No specific action items found."}</p>
+                <div style={{ marginTop: 20, padding: 18, background: '#f0fdf4', border: '2px solid #22c55e', borderRadius: 12 }}>
+                  <h4 style={{ margin: '0 0 10px', color: '#166534', fontWeight: 700 }}>✅ Summary Preview</h4>
+                  <pre style={{ whiteSpace: 'pre-wrap', color: '#15803d', fontSize: '0.88em', margin: 0, fontFamily: 'inherit' }}>{summary.discussion}</pre>
+                  <h4 style={{ margin: '14px 0 8px', color: '#166534', fontWeight: 700 }}>⚡ Action Items</h4>
+                  <pre style={{ whiteSpace: 'pre-wrap', color: '#b91c1c', fontSize: '0.88em', margin: 0, fontFamily: 'inherit', fontWeight: 600 }}>
+                    {summary.actions || 'No specific action items found.'}
+                  </pre>
                 </div>
               )}
-
             </div>
+
+            {/* ═══ MOM HISTORY LIST (ACCORDION) ═══ */}
+            <div style={{ borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 16px rgba(37,99,235,0.07)', border: '1px solid #e0eaff' }}>
+
+              {/* Section Header */}
+              <div style={{
+                background: 'linear-gradient(135deg, #1e40af, #2563eb)',
+                padding: '14px 20px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <h3 style={{ margin: 0, color: '#fff', fontWeight: 800, fontSize: '1rem' }}>📋 MoM History</h3>
+                <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 20, padding: '3px 14px', fontSize: '0.82rem', fontWeight: 700 }}>
+                  {momList.length} record{momList.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {/* List Body */}
+              {momLoading ? (
+                <div style={{ padding: 40, textAlign: 'center', color: '#64748b', background: '#fff' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: 8 }}>⏳</div>
+                  Loading MoM records...
+                </div>
+              ) : momList.length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', background: '#fff' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>📭</div>
+                  <div style={{ fontWeight: 600 }}>No MoM records yet</div>
+                  <div style={{ fontSize: '0.85rem', marginTop: 4 }}>Create your first one using the form above</div>
+                </div>
+              ) : (
+                <div style={{ background: '#fff' }}>
+                  {momList.map((mom, idx) => {
+                    const isExpanded = expandedMomId === mom.id;
+                    const allP = [...(Array.isArray(mom.participants) ? mom.participants : []), mom.manualParticipant].filter(Boolean);
+                    const dateStr = mom.date || (mom.timestamp?.toDate ? mom.timestamp.toDate().toLocaleDateString('en-IN') : '—');
+
+                    return (
+                      <div key={mom.id} style={{ borderBottom: idx < momList.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+
+                        {/* ── Accordion Header ── */}
+                        <div
+                          onClick={() => toggleMom(mom.id)}
+                          style={{
+                            padding: '14px 20px',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            cursor: 'pointer',
+                            background: isExpanded ? '#eff6ff' : '#fff',
+                            transition: 'background 0.2s',
+                            userSelect: 'none',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0 }}>
+                            {/* Circle image / icon */}
+                            <div style={{
+                              width: 44, height: 44, borderRadius: '50%',
+                              border: `2px solid ${isExpanded ? '#3b82f6' : '#93c5fd'}`,
+                              background: mom.image ? 'transparent' : (isExpanded ? '#dbeafe' : '#eff6ff'),
+                              overflow: 'hidden', flexShrink: 0,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              transition: 'border-color 0.2s',
+                            }}>
+                              {mom.image
+                                ? <img src={mom.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                : <span style={{ fontSize: '1.2rem' }}>📋</span>
+                              }
+                            </div>
+
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 800, color: isExpanded ? '#1e40af' : '#1e293b', fontSize: '0.98rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {mom.meetingName || 'Untitled Meeting'}
+                              </div>
+                              <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 3, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                <span>📅 {dateStr}</span>
+                                <span>•</span>
+                                <span>👥 {allP.length} participant{allP.length !== 1 ? 's' : ''}</span>
+                                <span>•</span>
+                                <span>📌 {(mom.points || []).length} point{(mom.points || []).length !== 1 ? 's' : ''}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 12 }}>
+                            <span style={{
+                              color: isExpanded ? '#1e40af' : '#3b82f6',
+                              fontSize: '0.8rem', fontWeight: 700,
+                              background: isExpanded ? '#dbeafe' : '#f0f7ff',
+                              borderRadius: 20, padding: '3px 12px',
+                              border: '1px solid #bfdbfe',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {isExpanded ? '▲ Hide' : '▼ Show'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* ── Accordion Body ── */}
+                        {isExpanded && (
+                          <div style={{ padding: '16px 20px 20px', background: '#f8fbff', borderTop: '1px solid #dbeafe' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
+
+                              {/* Meeting image (larger) */}
+                              {mom.image && (
+                                <div style={{ flexShrink: 0 }}>
+                                  <img
+                                    src={mom.image}
+                                    alt="meeting"
+                                    style={{ width: 110, height: 110, borderRadius: 12, objectFit: 'cover', border: '2px solid #93c5fd', boxShadow: '0 2px 10px rgba(59,130,246,0.15)' }}
+                                  />
+                                </div>
+                              )}
+
+                              <div style={{ flex: 1, minWidth: 200 }}>
+                                {/* Participants */}
+                                {allP.length > 0 && (
+                                  <div style={{ marginBottom: 14 }}>
+                                    <div style={{ fontWeight: 700, color: '#1e40af', marginBottom: 6, fontSize: '0.88rem' }}>👥 Participants</div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                                      {allP.map((p, i) => (
+                                        <span key={i} style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 20, padding: '2px 9px', fontSize: '0.78rem', fontWeight: 600 }}>{p}</span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Discussion Points */}
+                                {(mom.points || []).length > 0 && (
+                                  <div style={{ marginBottom: 14 }}>
+                                    <div style={{ fontWeight: 700, color: '#1e40af', marginBottom: 6, fontSize: '0.88rem' }}>📌 Discussion Points</div>
+                                    <ol style={{ margin: 0, paddingLeft: 18, color: '#334155' }}>
+                                      {mom.points.map((pt, i) => (
+                                        <li key={i} style={{ marginBottom: 4, fontSize: '0.85rem' }}>{pt}</li>
+                                      ))}
+                                    </ol>
+                                  </div>
+                                )}
+
+                                {/* Summary */}
+                                {mom.summary?.actions && (
+                                  <div style={{ marginBottom: 10, padding: '8px 12px', background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
+                                    <div style={{ fontWeight: 700, color: '#b91c1c', marginBottom: 4, fontSize: '0.82rem' }}>⚡ Action Items</div>
+                                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#7f1d1d', fontSize: '0.82rem', fontFamily: 'inherit' }}>{mom.summary.actions}</pre>
+                                  </div>
+                                )}
+
+                                {/* Location */}
+                                {mom.location?.lat && (
+                                  <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                                    📍 {mom.location.lat}, {mom.location.lng}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* PDF Export button */}
+                            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                              <button
+                                onClick={() => generatePDF(mom)}
+                                style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 22px', fontWeight: 700, cursor: 'pointer', fontSize: '0.88rem' }}
+                              >
+                                📄 Export PDF
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       </div>

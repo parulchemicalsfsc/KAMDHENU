@@ -380,7 +380,7 @@ export default function DemoSalesHistory() {
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" stroke="#174ea6" strokeWidth="2" /><rect x="3" y="3" width="13" height="13" rx="2" fill="#fff" stroke="#174ea6" strokeWidth="2" /></svg>
                               )}
                             </button>
-                            <button className="btn-outline" style={{ padding: '4px 8px', borderRadius: 6, background: '#fff', color: '#174ea6', border: '1.5px solid #b6c7e6', fontWeight: 700, cursor: 'pointer', marginLeft: 6 }} title="Download PDF" onClick={handleDownloadPDF}>
+                            <button className="btn-outline" style={{ padding: '4px 8px', borderRadius: 6, background: '#fff', color: '#174ea6', border: '1.5px solid #b6c7e6', fontWeight: 700, cursor: 'pointer', marginLeft: 6 }} title="Download PDF" onClick={() => handleDownloadPDF(r)}>
                               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 5v14m0 0l-6-6m6 6l6-6" stroke="#174ea6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                             </button>
                           </td>
