@@ -116,42 +116,6 @@ export default function Home() {
 
   const quickActions = [];
 
-  if (["admin", "manager", "field_officer"].includes(role)) {
-    quickActions.push({
-      to: "/form",
-      icon: "📝",
-      title: "Field Daily Form",
-      description:
-        "Record today's milk and chemical collection data across your assigned route.",
-    });
-  }
-
-  quickActions.push({
-    to: "/demo-sales-list",
-    icon: "🧾",
-    title: "Demo Sales",
-    description:
-      "Log product demonstrations, sampling results, and potential sales leads.",
-  });
-
-  quickActions.push({
-    to: "/member-page",
-    icon: "👥",
-    title: "Members",
-    description:
-      "Manage producer profiles and view detailed client performance metrics.",
-  });
-
-  if (role === "admin" || canViewHistory) {
-    quickActions.push({
-      to: "/history",
-      icon: "📜",
-      title: "History",
-      description:
-        "Review past entry records, submission logs, and performance analytics.",
-    });
-  }
-
   if (role !== "field_officer") {
     quickActions.push({
       to: "/MoM-generator",
@@ -160,13 +124,6 @@ export default function Home() {
       description: "Create and manage meeting minutes and reports.",
     });
   }
-
-  quickActions.push({
-    to: "/route-planner",
-    icon: "🗺️",
-    title: "Route",
-    description: "Plan and view your daily field routes.",
-  });
 
   quickActions.push({
     to: "/stock-dashboard",

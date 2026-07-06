@@ -47,8 +47,15 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [newlyAddedVillageName, setNewlyAddedVillageName] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 600);
   const searchInputRef = useRef(null);
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 600);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Filter villages with fuzzy search
   const filteredVillages = useMemo(() => {
@@ -146,7 +153,7 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
   return (
     <div style={{ 
       marginBottom: "30px", 
-      padding: "24px", 
+      padding: isMobile ? "16px 12px" : "24px", 
       backgroundColor: "#ffffff", 
       borderRadius: "16px",
       boxShadow: "0 10px 30px rgba(0, 0, 0, 0.05)",
@@ -470,7 +477,7 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
             }}>
               <span style={{ color: "#10b981" }}>➕</span> Add New Village
             </label>
-            <div style={{ display: "flex", gap: "10px", alignItems: "stretch" }}>
+            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: "10px", alignItems: "stretch" }}>
               <div style={{ position: "relative", flex: 1 }}>
                 <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: "1.1rem" }}>🏡</span>
                 <input
@@ -495,7 +502,7 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
                     outline: "none",
                     minHeight: "48px",
                     color: "#1e293b",
-                    height: "100%"
+                    height: isMobile ? "48px" : "100%"
                   }}
                   onFocus={(e) => {
                     e.target.style.borderColor = "#10b981";
@@ -522,7 +529,7 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
                 onClick={handleCreateNewVillage}
                 disabled={!addNewInput.trim()}
                 style={{
-                  padding: "0 24px",
+                  padding: isMobile ? "12px 24px" : "0 24px",
                   background: addNewInput.trim() ? "linear-gradient(135deg, #10b981 0%, #059669 100%)" : "#e2e8f0",
                   color: addNewInput.trim() ? "#fff" : "#94a3b8",
                   border: "none",
@@ -532,7 +539,9 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
                   fontSize: "0.95rem",
                   transition: "all 0.3s ease",
                   boxShadow: addNewInput.trim() ? "0 4px 12px rgba(16, 185, 129, 0.3)" : "none",
-                  whiteSpace: "nowrap"
+                  whiteSpace: "nowrap",
+                  width: isMobile ? "100%" : "auto",
+                  minHeight: isMobile ? "48px" : "auto"
                 }}
                 onMouseEnter={(e) => {
                   if (addNewInput.trim()) {

@@ -267,6 +267,12 @@ const DemoSalesList = () => {
   const [lastVillageId, setLastVillageId] = useState(null);
   const [lastVillageName, setLastVillageName] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 600);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 600);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   const nextStep = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
     setCurrentStep((prev) => Math.min(prev + 1, 4));
@@ -3953,8 +3959,9 @@ ${paymentLines || "—"}
                         style={{
                           marginBottom: 14,
                           display: "flex",
+                          flexDirection: isMobile ? "column" : "row",
                           gap: 8,
-                          alignItems: "flex-end",
+                          alignItems: isMobile ? "stretch" : "flex-end",
                         }}
                       >
                         <div style={{ flex: 1 }}>
@@ -4001,6 +4008,7 @@ ${paymentLines || "—"}
                             cursor: "pointer",
                             fontSize: "0.9em",
                             transition: "all 0.2s",
+                            width: isMobile ? "100%" : "auto",
                           }}
                           onMouseOver={(e) => {
                             e.target.style.background = "#1d4ed8";
@@ -5732,7 +5740,8 @@ ${paymentLines || "—"}
               background: "#f0f4f9",
               borderRadius: 24,
               padding: "32px 24px",
-              width: "360px",
+              width: "90%",
+              maxWidth: "360px",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
