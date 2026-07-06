@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { toast } from 'react-toastify';
 import { db } from "../firebase";
-import { collection, addDoc, Timestamp, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, addDoc, Timestamp } from "firebase/firestore";
 import Navbar from "../components/Navbar";
 import "../style/form.css";
 
@@ -70,11 +70,6 @@ const MoMForm = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // History list state
-  const [momList, setMomList] = useState([]);
-  const [momLoading, setMomLoading] = useState(true);
-  const [expandedMomId, setExpandedMomId] = useState(null);
-
   // ── Init ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -82,21 +77,7 @@ const MoMForm = () => {
       () => {}
     );
     setDate(new Date().toISOString().split('T')[0]);
-    fetchMomList();
   }, []);
-
-  // ── Fetch all saved MoMs ─────────────────────────────────────────────────
-  const fetchMomList = async () => {
-    setMomLoading(true);
-    try {
-      const q = query(collection(db, 'demo_moms'), orderBy('timestamp', 'desc'));
-      const snap = await getDocs(q);
-      setMomList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (e) {
-      console.error('Fetch MoM list error:', e);
-    }
-    setMomLoading(false);
-  };
 
   // ── Image upload + compress ──────────────────────────────────────────────
   const handleImageChange = async (e) => {
@@ -166,7 +147,6 @@ const MoMForm = () => {
       setMeetingName(''); setParticipants([]); setManualParticipant('');
       setPoints([]); setSummary(null); setImage(null); setImagePreview(null);
       setDate(new Date().toISOString().split('T')[0]);
-      await fetchMomList();
     } catch (e) {
       toast.error('Save failed: ' + e.message);
     }
@@ -301,9 +281,6 @@ const MoMForm = () => {
       toast.error('PDF export failed: ' + e.message);
     }
   };
-
-  // ── Accordion toggle ──────────────────────────────────────────────────────
-  const toggleMom = (id) => setExpandedMomId(prev => prev === id ? null : id);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -490,173 +467,9 @@ const MoMForm = () => {
               )}
             </div>
 
-            {/* ═══ MOM HISTORY LIST (ACCORDION) ═══ */}
-            <div style={{ borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 16px rgba(37,99,235,0.07)', border: '1px solid #e0eaff' }}>
-
-              {/* Section Header */}
-              <div style={{
-                background: 'linear-gradient(135deg, #1e40af, #2563eb)',
-                padding: '14px 20px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <h3 style={{ margin: 0, color: '#fff', fontWeight: 800, fontSize: '1rem' }}>📋 MoM History</h3>
-                <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 20, padding: '3px 14px', fontSize: '0.82rem', fontWeight: 700 }}>
-                  {momList.length} record{momList.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-
-              {/* List Body */}
-              {momLoading ? (
-                <div style={{ padding: 40, textAlign: 'center', color: '#64748b', background: '#fff' }}>
-                  <div style={{ fontSize: '2rem', marginBottom: 8 }}>⏳</div>
-                  Loading MoM records...
-                </div>
-              ) : momList.length === 0 ? (
-                <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', background: '#fff' }}>
-                  <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>📭</div>
-                  <div style={{ fontWeight: 600 }}>No MoM records yet</div>
-                  <div style={{ fontSize: '0.85rem', marginTop: 4 }}>Create your first one using the form above</div>
-                </div>
-              ) : (
-                <div style={{ background: '#fff' }}>
-                  {momList.map((mom, idx) => {
-                    const isExpanded = expandedMomId === mom.id;
-                    const allP = [...(Array.isArray(mom.participants) ? mom.participants : []), mom.manualParticipant].filter(Boolean);
-                    const dateStr = mom.date || (mom.timestamp?.toDate ? mom.timestamp.toDate().toLocaleDateString('en-IN') : '—');
-
-                    return (
-                      <div key={mom.id} style={{ borderBottom: idx < momList.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-
-                        {/* ── Accordion Header ── */}
-                        <div
-                          onClick={() => toggleMom(mom.id)}
-                          style={{
-                            padding: '14px 20px',
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            cursor: 'pointer',
-                            background: isExpanded ? '#eff6ff' : '#fff',
-                            transition: 'background 0.2s',
-                            userSelect: 'none',
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0 }}>
-                            {/* Circle image / icon */}
-                            <div style={{
-                              width: 44, height: 44, borderRadius: '50%',
-                              border: `2px solid ${isExpanded ? '#3b82f6' : '#93c5fd'}`,
-                              background: mom.image ? 'transparent' : (isExpanded ? '#dbeafe' : '#eff6ff'),
-                              overflow: 'hidden', flexShrink: 0,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              transition: 'border-color 0.2s',
-                            }}>
-                              {mom.image
-                                ? <img src={mom.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                : <span style={{ fontSize: '1.2rem' }}>📋</span>
-                              }
-                            </div>
-
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ fontWeight: 800, color: isExpanded ? '#1e40af' : '#1e293b', fontSize: '0.98rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {mom.meetingName || 'Untitled Meeting'}
-                              </div>
-                              <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 3, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                <span>📅 {dateStr}</span>
-                                <span>•</span>
-                                <span>👥 {allP.length} participant{allP.length !== 1 ? 's' : ''}</span>
-                                <span>•</span>
-                                <span>📌 {(mom.points || []).length} point{(mom.points || []).length !== 1 ? 's' : ''}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 12 }}>
-                            <span style={{
-                              color: isExpanded ? '#1e40af' : '#3b82f6',
-                              fontSize: '0.8rem', fontWeight: 700,
-                              background: isExpanded ? '#dbeafe' : '#f0f7ff',
-                              borderRadius: 20, padding: '3px 12px',
-                              border: '1px solid #bfdbfe',
-                              whiteSpace: 'nowrap',
-                            }}>
-                              {isExpanded ? '▲ Hide' : '▼ Show'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* ── Accordion Body ── */}
-                        {isExpanded && (
-                          <div style={{ padding: '16px 20px 20px', background: '#f8fbff', borderTop: '1px solid #dbeafe' }}>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
-
-                              {/* Meeting image (larger) */}
-                              {mom.image && (
-                                <div style={{ flexShrink: 0 }}>
-                                  <img
-                                    src={mom.image}
-                                    alt="meeting"
-                                    style={{ width: 110, height: 110, borderRadius: 12, objectFit: 'cover', border: '2px solid #93c5fd', boxShadow: '0 2px 10px rgba(59,130,246,0.15)' }}
-                                  />
-                                </div>
-                              )}
-
-                              <div style={{ flex: 1, minWidth: 200 }}>
-                                {/* Participants */}
-                                {allP.length > 0 && (
-                                  <div style={{ marginBottom: 14 }}>
-                                    <div style={{ fontWeight: 700, color: '#1e40af', marginBottom: 6, fontSize: '0.88rem' }}>👥 Participants</div>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                                      {allP.map((p, i) => (
-                                        <span key={i} style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 20, padding: '2px 9px', fontSize: '0.78rem', fontWeight: 600 }}>{p}</span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Discussion Points */}
-                                {(mom.points || []).length > 0 && (
-                                  <div style={{ marginBottom: 14 }}>
-                                    <div style={{ fontWeight: 700, color: '#1e40af', marginBottom: 6, fontSize: '0.88rem' }}>📌 Discussion Points</div>
-                                    <ol style={{ margin: 0, paddingLeft: 18, color: '#334155' }}>
-                                      {mom.points.map((pt, i) => (
-                                        <li key={i} style={{ marginBottom: 4, fontSize: '0.85rem' }}>{pt}</li>
-                                      ))}
-                                    </ol>
-                                  </div>
-                                )}
-
-                                {/* Summary */}
-                                {mom.summary?.actions && (
-                                  <div style={{ marginBottom: 10, padding: '8px 12px', background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
-                                    <div style={{ fontWeight: 700, color: '#b91c1c', marginBottom: 4, fontSize: '0.82rem' }}>⚡ Action Items</div>
-                                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#7f1d1d', fontSize: '0.82rem', fontFamily: 'inherit' }}>{mom.summary.actions}</pre>
-                                  </div>
-                                )}
-
-                                {/* Location */}
-                                {mom.location?.lat && (
-                                  <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
-                                    📍 {mom.location.lat}, {mom.location.lng}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* PDF Export button */}
-                            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                              <button
-                                onClick={() => generatePDF(mom)}
-                                style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 22px', fontWeight: 700, cursor: 'pointer', fontSize: '0.88rem' }}
-                              >
-                                📄 Export PDF
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+            {/* MoM history has been moved to the History page → MoM History tab */}
+            <div style={{ marginTop: 16, padding: '14px 18px', background: '#eff6ff', borderRadius: 10, border: '1px solid #bfdbfe', color: '#1e40af', fontSize: '0.88rem', fontWeight: 600 }}>
+              📋 To view, manage or delete MoM records, go to the <strong>History</strong> page → <strong>🗒️ MoM History</strong> tab.
             </div>
 
           </div>

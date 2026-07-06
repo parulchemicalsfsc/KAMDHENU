@@ -4,7 +4,7 @@ import Navbar from '../components/Navbar';
 import { db } from '../firebase';
 import {
   collection, getDocs, query, orderBy, where,
-  limit, startAfter, updateDoc, doc
+  limit, startAfter, updateDoc, deleteDoc, doc
 } from 'firebase/firestore';
 import '../style/History.css';
 import '../style/DailyForm.css';
@@ -16,47 +16,6 @@ const PAGE_SIZE = 10;
 function buildCacheKey(tab, officer, dateFrom, dateTo, pageIndex) {
   return `${tab}|officer=${officer}|from=${dateFrom}|to=${dateTo}|page=${pageIndex}`;
 }
-
-// ── Sample MoM fallback (shown if Firebase has no records) ───────────────────
-const SAMPLE_MOMS = [
-  {
-    id: 'sample-mom-1',
-    meetingName: 'Weekly Sales Review',
-    date: '2025-06-28',
-    participants: ['JASH ILASARIYA', 'SONAL MADAM', 'MAULIC SHAH', 'JIGAR SHAH'],
-    manualParticipant: '',
-    points: [
-      'Reviewed demo sales targets for Q2',
-      'Discussed new village outreach strategy',
-      'Action: Follow up with pending leads by Friday',
-      'Stock level check — reorder 5LTR PLASTIC JAR',
-    ],
-    summary: {
-      discussion: '1. Reviewed demo sales targets for Q2\n2. Discussed new village outreach strategy\n3. Action: Follow up with pending leads by Friday\n4. Stock level check — reorder 5LTR PLASTIC JAR',
-      actions: '• Action: Follow up with pending leads by Friday',
-    },
-    image: null,
-    timestamp: null,
-  },
-  {
-    id: 'sample-mom-2',
-    meetingName: 'Monthly Planning Meeting',
-    date: '2025-06-14',
-    participants: ['BHAVIN PRAJAPATI', 'PARUL BEN', 'SHUBHAM', 'OMKAR SIR'],
-    manualParticipant: 'Alpesh Patel',
-    points: [
-      'Q3 demo targets set for all officers',
-      'Team assignments for upcoming village demos',
-      'To Do: Update member registration list',
-    ],
-    summary: {
-      discussion: '1. Q3 demo targets set for all officers\n2. Team assignments for upcoming village demos\n3. To Do: Update member registration list',
-      actions: '• To Do: Update member registration list',
-    },
-    image: null,
-    timestamp: null,
-  },
-];
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function HistoryPage() {
@@ -91,6 +50,10 @@ export default function HistoryPage() {
   const [editModalRecord, setEditModalRecord] = useState(null);
   const [editSaving, setEditSaving]           = useState(false);
 
+  // Delete confirmation
+  const [deleteConfirmRecord, setDeleteConfirmRecord] = useState(null);
+  const [deleteInProgress, setDeleteInProgress]       = useState(false);
+
   // MoM tab
   const [momData, setMomData]         = useState([]);
   const [momLoading, setMomLoading]   = useState(false);
@@ -118,11 +81,11 @@ export default function HistoryPage() {
     getDocs(query(collection(db, 'demo_moms'), orderBy('timestamp', 'desc')))
       .then(snap => {
         const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setMomData(docs.length > 0 ? docs : SAMPLE_MOMS);
+        setMomData(docs);
         setMomLoading(false);
       })
       .catch(() => {
-        setMomData(SAMPLE_MOMS);
+        setMomData([]);
         setMomLoading(false);
       });
   }, [activeTab]);
@@ -321,7 +284,6 @@ export default function HistoryPage() {
       const collectionName = isField ? 'fieldOfficerForms' : 'demoForms';
       const { reportId, initials, status: _s, ...dataToSave } = updatedRecord;
       await updateDoc(doc(db, collectionName, updatedRecord.id), dataToSave);
-      // Update local state
       historyCache.clear();
       if (isField) {
         setFieldData(prev => prev.map(r => r.id === updatedRecord.id ? { ...r, ...dataToSave } : r));
@@ -336,262 +298,28 @@ export default function HistoryPage() {
     setEditSaving(false);
   };
 
-  // ── View Modal ──────────────────────────────────────────────────────────
-  const ViewModal = ({ record, onClose }) => {
-    if (!record) return null;
-    const isField = (record.reportId || '').startsWith('#RF-');
-    return (
-      <div
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
-      >
-        <div
-          onClick={e => e.stopPropagation()}
-          style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', maxWidth: 560, width: '100%', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '2px solid #e0eaff', paddingBottom: 12 }}>
-            <h3 style={{ margin: 0, color: '#1e40af', fontWeight: 800, fontSize: '1.1rem' }}>
-              {isField ? '📋 Field Daily Form Details' : '📊 Demo Sales Details'}
-            </h3>
-            <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: '1rem' }}>✕</button>
-          </div>
-
-          {isField ? (
-            <div style={{ lineHeight: 1.9, fontSize: '0.9rem', color: '#334155' }}>
-              <Row label="Officer" val={record.officerName} />
-              <Row label="Date" val={record.date} />
-              <Row label="Working Type" val={record.workingType} />
-              <Row label="KMs Travelled" val={record.kms} />
-              <Row label="Punch In" val={record.punchIn} />
-              <Row label="Punch Out" val={record.punchOut} />
-              <Row label="Total Hours" val={record.hours} />
-              <Row label="Entry By" val={record.entryBy} />
-              <Row label="Reviewer" val={record.reviewer} />
-              <Row label="Reviewer Comment" val={record.reviewerComment} />
-              {(record.locations || []).filter(Boolean).length > 0 && (
-                <div style={{ marginTop: 10 }}>
-                  <strong style={{ color: '#1e40af' }}>Visited Locations:</strong>
-                  <ul style={{ margin: '4px 0 0 16px' }}>
-                    {record.locations.filter(Boolean).map((l, i) => <li key={i}>{l}</li>)}
-                  </ul>
-                </div>
-              )}
-              {(record.customers || []).filter(c => c.name).length > 0 && (
-                <div style={{ marginTop: 10 }}>
-                  <strong style={{ color: '#1e40af' }}>Customers:</strong>
-                  <ul style={{ margin: '4px 0 0 16px' }}>
-                    {record.customers.filter(c => c.name).map((c, i) => (
-                      <li key={i} style={{ marginBottom: 4 }}>
-                        <b>{c.name}</b> {c.phone ? `(${c.phone})` : ''} {c.type ? `- ${c.type}` : ''}
-                        {(c.orders || []).length > 0 && (
-                          <div style={{ fontSize: '0.82rem', color: '#64748b' }}>Orders: {c.orders.map(o => `${o.packaging} x ${o.quantity}`).join(', ')}</div>
-                        )}
-                        {c.remark && <div style={{ fontSize: '0.82rem', color: '#64748b' }}>Remark: {c.remark}</div>}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <Row label="Notes" val={record.notes} />
-              <Row label="Remarks" val={record.remarks} />
-              <div style={{ marginTop: 10, padding: '10px 14px', background: '#f0f7ff', borderRadius: 8 }}>
-                <strong style={{ color: '#1e40af' }}>Expenses:</strong>
-                <div>Food: ₹{record.expenses?.food ?? '-'} &nbsp;|&nbsp; Fuel: ₹{record.expenses?.fuel ?? '-'} &nbsp;|&nbsp; <b>Total: ₹{record.expenses?.total ?? '-'}</b></div>
-              </div>
-            </div>
-          ) : (
-            <div style={{ lineHeight: 1.9, fontSize: '0.9rem', color: '#334155' }}>
-              <Row label="Demo Name" val={record.demoName || record.village} />
-              <Row label="Village" val={record.village} />
-              <Row label="Date" val={record.date} />
-              <Row label="Taluka" val={record.taluka} />
-              <Row label="Mantri" val={record.mantri} />
-              <Row label="Total Milk" val={record.totalMilk} />
-              <Row label="Active Sabhasad" val={record.activeSabhasad} />
-              <Row label="Team Members" val={record.teamMembers} />
-              <Row label="Entry By" val={record.entryBy} />
-              <Row label="Demo Remarks" val={record.demoRemarks} />
-              {(record.customers || []).length > 0 && (
-                <div style={{ marginTop: 10 }}>
-                  <strong style={{ color: '#1e40af' }}>Customers:</strong>
-                  <ul style={{ margin: '4px 0 0 16px' }}>
-                    {record.customers.map((c, i) => (
-                      <li key={i}><b>{c.name}</b> ({c.mobile || '-'}) — {c.orderPackaging} × {c.orderQty} {c.remarks ? `| ${c.remarks}` : ''}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div style={{ marginTop: 20, textAlign: 'right' }}>
-            <button onClick={onClose} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 24px', fontWeight: 700, cursor: 'pointer' }}>Close</button>
-          </div>
-        </div>
-      </div>
-    );
+  // ── Delete Record ────────────────────────────────────────────────────────
+  const handleDeleteRecord = async (record, collectionName) => {
+    setDeleteInProgress(true);
+    try {
+      await deleteDoc(doc(db, collectionName, record.id));
+      historyCache.clear();
+      if (collectionName === 'fieldOfficerForms') {
+        setFieldData(prev => prev.filter(r => r.id !== record.id));
+      } else if (collectionName === 'demoForms') {
+        setDemoData(prev => prev.filter(r => r.id !== record.id));
+      } else if (collectionName === 'demo_moms') {
+        setMomData(prev => prev.filter(r => r.id !== record.id));
+      }
+      toast.success('Record deleted successfully! 🗑️');
+      setDeleteConfirmRecord(null);
+    } catch (e) {
+      toast.error('Delete failed: ' + e.message);
+    }
+    setDeleteInProgress(false);
   };
 
-  // ── Edit Modal ──────────────────────────────────────────────────────────
-  const EditModal = ({ record, onClose }) => {
-    if (!record) return null;
-    const isField = (record.reportId || '').startsWith('#RF-');
-    const [form, setForm] = useState({ ...record });
-    const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
-    const setExp = (key, val) => setForm(prev => ({ ...prev, expenses: { ...(prev.expenses || {}), [key]: val } }));
-
-    const inputStyle = {
-      width: '100%', border: '1.5px solid #b6c7e6', borderRadius: 8,
-      padding: '8px 10px', fontFamily: 'inherit', fontSize: '0.88rem',
-      background: '#f8faff', outline: 'none', boxSizing: 'border-box',
-    };
-    const labelStyle = { fontWeight: 700, color: '#1e40af', fontSize: '0.8rem', display: 'block', marginBottom: 4 };
-    const fieldStyle = { marginBottom: 14 };
-
-    return (
-      <div
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
-      >
-        <div
-          onClick={e => e.stopPropagation()}
-          style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', maxWidth: 600, width: '100%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}
-        >
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '2px solid #e0eaff', paddingBottom: 12 }}>
-            <h3 style={{ margin: 0, color: '#1e40af', fontWeight: 800, fontSize: '1.1rem' }}>
-              ✏️ Edit {isField ? 'Field Daily Form' : 'Demo Sales'} Record
-            </h3>
-            <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: '1rem' }}>✕</button>
-          </div>
-
-          {isField ? (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Officer Name</label>
-                  <input style={inputStyle} value={form.officerName || ''} onChange={e => set('officerName', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Date</label>
-                  <input type="date" style={inputStyle} value={form.date || ''} onChange={e => set('date', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Working Type</label>
-                  <input style={inputStyle} value={form.workingType || ''} onChange={e => set('workingType', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>KMs Travelled</label>
-                  <input style={inputStyle} value={form.kms || ''} onChange={e => set('kms', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Punch In</label>
-                  <input style={inputStyle} value={form.punchIn || ''} onChange={e => set('punchIn', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Punch Out</label>
-                  <input style={inputStyle} value={form.punchOut || ''} onChange={e => set('punchOut', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Total Hours</label>
-                  <input style={inputStyle} value={form.hours || ''} onChange={e => set('hours', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Reviewer</label>
-                  <input style={inputStyle} value={form.reviewer || ''} onChange={e => set('reviewer', e.target.value)} />
-                </div>
-              </div>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Reviewer Comment</label>
-                <input style={inputStyle} value={form.reviewerComment || ''} onChange={e => set('reviewerComment', e.target.value)} />
-              </div>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Notes</label>
-                <textarea style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} value={form.notes || ''} onChange={e => set('notes', e.target.value)} />
-              </div>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Remarks</label>
-                <textarea style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} value={form.remarks || ''} onChange={e => set('remarks', e.target.value)} />
-              </div>
-              <div style={{ background: '#f0f7ff', borderRadius: 10, padding: '14px 16px', marginBottom: 14 }}>
-                <label style={{ ...labelStyle, marginBottom: 10 }}>💰 Expenses</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                  <div>
-                    <label style={{ ...labelStyle, color: '#64748b' }}>Food (₹)</label>
-                    <input style={inputStyle} value={form.expenses?.food || ''} onChange={e => setExp('food', e.target.value)} />
-                  </div>
-                  <div>
-                    <label style={{ ...labelStyle, color: '#64748b' }}>Fuel (₹)</label>
-                    <input style={inputStyle} value={form.expenses?.fuel || ''} onChange={e => setExp('fuel', e.target.value)} />
-                  </div>
-                  <div>
-                    <label style={{ ...labelStyle, color: '#64748b' }}>Total (₹)</label>
-                    <input style={inputStyle} value={form.expenses?.total || ''} onChange={e => setExp('total', e.target.value)} />
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Demo Name</label>
-                  <input style={inputStyle} value={form.demoName || ''} onChange={e => set('demoName', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Village</label>
-                  <input style={inputStyle} value={form.village || ''} onChange={e => set('village', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Date</label>
-                  <input type="date" style={inputStyle} value={form.date || ''} onChange={e => set('date', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Taluka</label>
-                  <input style={inputStyle} value={form.taluka || ''} onChange={e => set('taluka', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Mantri</label>
-                  <input style={inputStyle} value={form.mantri || ''} onChange={e => set('mantri', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Total Milk</label>
-                  <input style={inputStyle} value={form.totalMilk || ''} onChange={e => set('totalMilk', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Active Sabhasad</label>
-                  <input style={inputStyle} value={form.activeSabhasad || ''} onChange={e => set('activeSabhasad', e.target.value)} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Team Members</label>
-                  <input style={inputStyle} value={form.teamMembers || ''} onChange={e => set('teamMembers', e.target.value)} />
-                </div>
-              </div>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Demo Remarks</label>
-                <textarea style={{ ...inputStyle, minHeight: 70, resize: 'vertical' }} value={form.demoRemarks || ''} onChange={e => set('demoRemarks', e.target.value)} />
-              </div>
-            </>
-          )}
-
-          {/* Footer buttons */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8, paddingTop: 16, borderTop: '1px solid #e0eaff' }}>
-            <button
-              onClick={onClose}
-              style={{ padding: '10px 22px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer' }}
-            >Cancel</button>
-            <button
-              onClick={() => handleSaveEdit(form)}
-              disabled={editSaving}
-              style={{ padding: '10px 26px', background: editSaving ? '#93c5fd' : '#2563eb', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, cursor: editSaving ? 'not-allowed' : 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.3)' }}
-            >
-              {editSaving ? '⏳ Saving...' : '💾 Save Changes'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // (ViewModal, EditModal, DeleteConfirmModal moved outside — see bottom of file)
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -636,26 +364,35 @@ export default function HistoryPage() {
                 <div style={{ fontSize: '2rem', marginBottom: 8 }}>⏳</div>
                 Loading MoM records...
               </div>
+            ) : momData.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 80, background: '#fff', borderRadius: 24, border: '2px dashed #e2e8f0' }}>
+                <div style={{ fontSize: '3rem', marginBottom: 8 }}>📭</div>
+                <p style={{ color: '#94a3b8', fontWeight: 700, fontSize: '1rem' }}>No MoM records found.</p>
+                <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Create meetings from the MoM Form page.</p>
+              </div>
             ) : (
               <div style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 16px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}>
                 {momData.map((mom, idx) => {
                   const isExpanded = expandedMomId === mom.id;
                   const allP = [...(Array.isArray(mom.participants) ? mom.participants : []), mom.manualParticipant].filter(Boolean);
                   const dateStr = mom.date || (mom.timestamp?.toDate ? mom.timestamp.toDate().toLocaleDateString('en-IN') : '—');
+                  const createdAt = mom.timestamp?.toDate ? mom.timestamp.toDate().toLocaleString('en-IN') : null;
 
                   return (
                     <div key={mom.id} style={{ borderBottom: idx < momData.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
                       {/* Accordion Header */}
                       <div
-                        onClick={() => setExpandedMomId(prev => prev === mom.id ? null : mom.id)}
                         style={{
                           padding: '14px 20px', display: 'flex', justifyContent: 'space-between',
-                          alignItems: 'center', cursor: 'pointer',
-                          background: isExpanded ? '#eff6ff' : '#fff',
+                          alignItems: 'center', background: isExpanded ? '#eff6ff' : '#fff',
                           transition: 'background 0.2s', userSelect: 'none',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0 }}>
+                        {/* Clickable area */}
+                        <div
+                          onClick={() => setExpandedMomId(prev => prev === mom.id ? null : mom.id)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0, cursor: 'pointer' }}
+                        >
                           <div style={{
                             width: 44, height: 44, borderRadius: '50%',
                             border: `2px solid ${isExpanded ? '#3b82f6' : '#93c5fd'}`,
@@ -672,15 +409,27 @@ export default function HistoryPage() {
                             <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                               <span>📅 {dateStr}</span>
                               <span>•</span>
-                              <span>👥 {allP.length} participants</span>
+                              <span>👥 {allP.length} participant{allP.length !== 1 ? 's' : ''}</span>
                               <span>•</span>
-                              <span>📌 {(mom.points || []).length} points</span>
+                              <span>📌 {(mom.points || []).length} point{(mom.points || []).length !== 1 ? 's' : ''}</span>
                             </div>
                           </div>
                         </div>
-                        <span style={{ background: isExpanded ? '#dbeafe' : '#f0f7ff', color: '#2563eb', borderRadius: 20, padding: '3px 12px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #bfdbfe', whiteSpace: 'nowrap', marginLeft: 10 }}>
-                          {isExpanded ? '▲ Hide' : '▼ Show'}
-                        </span>
+
+                        {/* Action buttons + toggle */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 12 }}>
+                          <button
+                            onClick={() => setDeleteConfirmRecord({ ...mom, _collection: 'demo_moms' })}
+                            title="Delete MoM"
+                            style={{ background: '#fee2e2', color: '#dc2626', border: '1.5px solid #fca5a5', borderRadius: 8, padding: '5px 10px', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' }}
+                          >🗑️</button>
+                          <span
+                            onClick={() => setExpandedMomId(prev => prev === mom.id ? null : mom.id)}
+                            style={{ background: isExpanded ? '#dbeafe' : '#f0f7ff', color: '#2563eb', borderRadius: 20, padding: '3px 12px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #bfdbfe', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                          >
+                            {isExpanded ? '▲ Hide' : '▼ Show'}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Accordion Body */}
@@ -691,14 +440,25 @@ export default function HistoryPage() {
                               <img src={mom.image} alt="meeting" style={{ width: 100, height: 100, borderRadius: 10, objectFit: 'cover', border: '2px solid #93c5fd', flexShrink: 0 }} />
                             )}
                             <div style={{ flex: 1, minWidth: 200 }}>
+
+                              {/* Location */}
+                              {mom.location?.lat && (
+                                <div style={{ marginBottom: 10, fontSize: '0.82rem', color: '#64748b' }}>
+                                  📍 {mom.location.lat}, {mom.location.lng}
+                                </div>
+                              )}
+
+                              {/* Participants */}
                               {allP.length > 0 && (
                                 <div style={{ marginBottom: 12 }}>
-                                  <div style={{ fontWeight: 700, color: '#1e40af', marginBottom: 6, fontSize: '0.85rem' }}>👥 Participants</div>
+                                  <div style={{ fontWeight: 700, color: '#1e40af', marginBottom: 6, fontSize: '0.85rem' }}>👥 Participants ({allP.length})</div>
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                                     {allP.map((p, i) => <span key={i} style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 20, padding: '2px 9px', fontSize: '0.78rem', fontWeight: 600 }}>{p}</span>)}
                                   </div>
                                 </div>
                               )}
+
+                              {/* Discussion Points */}
                               {(mom.points || []).length > 0 && (
                                 <div style={{ marginBottom: 12 }}>
                                   <div style={{ fontWeight: 700, color: '#1e40af', marginBottom: 6, fontSize: '0.85rem' }}>📌 Discussion Points</div>
@@ -707,15 +467,36 @@ export default function HistoryPage() {
                                   </ol>
                                 </div>
                               )}
+
+                              {/* Summary */}
+                              {mom.summary?.discussion && (
+                                <div style={{ marginBottom: 10, padding: '8px 12px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                                  <div style={{ fontWeight: 700, color: '#166534', marginBottom: 4, fontSize: '0.82rem' }}>📝 Summary</div>
+                                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#166534', fontSize: '0.82rem', fontFamily: 'inherit' }}>{mom.summary.discussion}</pre>
+                                </div>
+                              )}
+
+                              {/* Action Items */}
                               {mom.summary?.actions && (
-                                <div style={{ padding: '8px 12px', background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
+                                <div style={{ marginBottom: 10, padding: '8px 12px', background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
                                   <div style={{ fontWeight: 700, color: '#b91c1c', marginBottom: 4, fontSize: '0.82rem' }}>⚡ Action Items</div>
                                   <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#7f1d1d', fontSize: '0.82rem', fontFamily: 'inherit' }}>{mom.summary.actions}</pre>
                                 </div>
                               )}
+
+                              {/* Created At */}
+                              {createdAt && (
+                                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 6 }}>
+                                  🕐 Created: {createdAt}
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+                          <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                            <button
+                              onClick={() => setDeleteConfirmRecord({ ...mom, _collection: 'demo_moms' })}
+                              style={{ background: '#fee2e2', color: '#dc2626', border: '1.5px solid #fca5a5', borderRadius: 8, padding: '8px 16px', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
+                            >🗑️ Delete</button>
                             <button onClick={() => generateMomPDF(mom)} style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}>
                               📄 Export PDF
                             </button>
@@ -836,6 +617,10 @@ export default function HistoryPage() {
                           ...report,
                           reportId: activeTab === 'field' ? `#RF-${report.id.slice(-5).toUpperCase()}` : `#DS-${report.id.slice(-5).toUpperCase()}`,
                         })}
+                        onDelete={() => setDeleteConfirmRecord({
+                          ...report,
+                          _collection: activeTab === 'field' ? 'fieldOfficerForms' : 'demoForms',
+                        })}
                       />
                     ))
                   ) : (
@@ -886,7 +671,23 @@ export default function HistoryPage() {
 
       {/* ── Edit Modal ── */}
       {editModalRecord && (
-        <EditModal record={editModalRecord} onClose={() => setEditModalRecord(null)} />
+        <EditModal
+          record={editModalRecord}
+          onClose={() => setEditModalRecord(null)}
+          onSave={handleSaveEdit}
+          editSaving={editSaving}
+        />
+      )}
+
+      {/* ── Delete Confirm Modal ── */}
+      {deleteConfirmRecord && (
+        <DeleteConfirmModal
+          record={deleteConfirmRecord}
+          collectionName={deleteConfirmRecord._collection}
+          onClose={() => setDeleteConfirmRecord(null)}
+          onDelete={handleDeleteRecord}
+          deleteInProgress={deleteInProgress}
+        />
       )}
     </div>
   );
@@ -904,14 +705,14 @@ function Row({ label, val }) {
 }
 
 // ── ReportCard component ──────────────────────────────────────────────────────
-function ReportCard({ report, onView, onEdit }) {
+function ReportCard({ report, onView, onEdit, onDelete }) {
   const statusColors = {
     COMPLETED: 'background:#e8f5e9;color:#2e7d32',
     'IN REVIEW': 'background:#e8eaf6;color:#3f51b5',
     PENDING: 'background:#fff3e0;color:#e65100',
   };
 
-  // ── PDF Export (FIXED) ────────────────────────────────────────────────
+  // ── PDF Export ────────────────────────────────────────────────
   const handleDownloadPDF = async () => {
     try {
       const { jsPDF } = await import('jspdf');
@@ -923,7 +724,6 @@ function ReportCard({ report, onView, onEdit }) {
       const isFieldReport = (report.reportId || '').startsWith('#RF-');
 
       if (isFieldReport) {
-        // ── Field Daily Form PDF ──
         let y = 15;
         docPdf.setFontSize(16);
         docPdf.setTextColor(13, 110, 253);
@@ -948,7 +748,6 @@ function ReportCard({ report, onView, onEdit }) {
         addLine(`Reviewer Comment: ${report.reviewerComment || '-'}`);
         y += 3;
 
-        // Locations
         if ((report.locations || []).filter(Boolean).length > 0) {
           if (y > 250) { docPdf.addPage(); y = 15; }
           docPdf.setFont('helvetica', 'bold');
@@ -960,7 +759,6 @@ function ReportCard({ report, onView, onEdit }) {
           y += 3;
         }
 
-        // Customers
         if ((report.customers || []).filter(c => c.name).length > 0) {
           if (y > 240) { docPdf.addPage(); y = 15; }
           docPdf.setFont('helvetica', 'bold');
@@ -988,7 +786,6 @@ function ReportCard({ report, onView, onEdit }) {
           y = docPdf.lastAutoTable.finalY + 8;
         }
 
-        // Notes, Remarks, Expenses
         if (y > 250) { docPdf.addPage(); y = 15; }
         docPdf.setFont('helvetica', 'bold');
         docPdf.setTextColor(13, 110, 253);
@@ -1015,7 +812,6 @@ function ReportCard({ report, onView, onEdit }) {
         docPdf.save(`DailyForm_${report.officerName || 'report'}_${report.date || ''}.pdf`);
 
       } else {
-        // ── Demo Sales PDF (FIXED labels + autoTable) ──
         let y = 15;
         docPdf.setFontSize(16);
         docPdf.setTextColor(13, 110, 253);
@@ -1042,7 +838,6 @@ function ReportCard({ report, onView, onEdit }) {
         addLine(`Demo Remarks: ${report.demoRemarks || '-'}`);
         y += 3;
 
-        // Customers table
         if ((report.customers || []).length > 0) {
           if (y > 240) { docPdf.addPage(); y = 15; }
           docPdf.setFont('helvetica', 'bold');
@@ -1076,10 +871,6 @@ function ReportCard({ report, onView, onEdit }) {
       toast.error('Failed to download PDF. Please try again.');
     }
   };
-
-  const [statusStyle] = (statusColors[report.status] || 'background:#f1f5f9;color:#64748b').split(';').reduce(
-    (acc, s) => { const [k, v] = s.split(':'); acc[0][k.trim()] = v?.trim(); return acc; }, [{}]
-  );
 
   return (
     <div style={{
@@ -1117,8 +908,8 @@ function ReportCard({ report, onView, onEdit }) {
 
       {/* Actions */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 10 }}>
-          {/* View button — FIXED: now calls onView */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {/* View */}
           <button
             onClick={onView}
             title="View Details"
@@ -1128,7 +919,7 @@ function ReportCard({ report, onView, onEdit }) {
             View
           </button>
 
-          {/* Edit — now functional */}
+          {/* Edit */}
           <button
             onClick={onEdit}
             title="Edit Record"
@@ -1136,6 +927,16 @@ function ReportCard({ report, onView, onEdit }) {
           >
             <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
             Edit
+          </button>
+
+          {/* Delete */}
+          <button
+            onClick={onDelete}
+            title="Delete Record"
+            style={{ background: '#fee2e2', color: '#dc2626', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '7px 14px', fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}
+          >
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            Delete
           </button>
         </div>
 
@@ -1151,3 +952,314 @@ function ReportCard({ report, onView, onEdit }) {
     </div>
   );
 }
+
+// ── DeleteConfirmModal (top-level so React preserves state) ───────────────────
+function DeleteConfirmModal({ record, collectionName, onClose, onDelete, deleteInProgress }) {
+  if (!record) return null;
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', maxWidth: 420, width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.25)', textAlign: 'center' }}
+      >
+        <div style={{ fontSize: '3rem', marginBottom: 12 }}>🗑️</div>
+        <h3 style={{ margin: '0 0 8px', color: '#dc2626', fontWeight: 800 }}>Delete Record?</h3>
+        <p style={{ color: '#64748b', margin: '0 0 24px', fontSize: '0.92rem' }}>
+          This action cannot be undone. The record will be permanently deleted from the database.
+        </p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+          <button
+            onClick={onClose}
+            style={{ padding: '10px 24px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: '0.92rem' }}
+          >Cancel</button>
+          <button
+            onClick={() => onDelete(record, collectionName)}
+            disabled={deleteInProgress}
+            style={{ padding: '10px 24px', background: deleteInProgress ? '#fca5a5' : '#dc2626', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, cursor: deleteInProgress ? 'not-allowed' : 'pointer', fontSize: '0.92rem' }}
+          >
+            {deleteInProgress ? '⏳ Deleting...' : '🗑️ Yes, Delete'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── ViewModal (top-level so React preserves state) ────────────────────────────
+function ViewModal({ record, onClose }) {
+  console.log("HistoryPage - ViewModal record:", record);
+  if (!record) return null;
+  const isField = (record.reportId || '').startsWith('#RF-');
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', maxWidth: 600, width: '100%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '2px solid #e0eaff', paddingBottom: 12 }}>
+          <h3 style={{ margin: 0, color: '#1e40af', fontWeight: 800, fontSize: '1.1rem' }}>
+            {isField ? '📋 Field Daily Form Details' : '📊 Demo Sales Details'}
+          </h3>
+          <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: '1rem' }}>✕</button>
+        </div>
+
+        {isField ? (
+          <div style={{ lineHeight: 1.9, fontSize: '0.9rem', color: '#334155' }}>
+            <Row label="Report ID" val={record.reportId} />
+            <Row label="Officer" val={record.officerName} />
+            <Row label="Date" val={record.date} />
+            <Row label="Working Type" val={record.workingType} />
+            <Row label="KMs Travelled" val={record.kms} />
+            <Row label="Punch In" val={record.punchIn} />
+            <Row label="Punch Out" val={record.punchOut} />
+            <Row label="Total Hours" val={record.hours} />
+            <Row label="Entry By" val={record.entryBy} />
+            <Row label="Reviewer" val={record.reviewer} />
+            <Row label="Reviewer Comment" val={record.reviewerComment} />
+            <Row label="Status" val={record.status} />
+            {(record.locations || []).filter(Boolean).length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <strong style={{ color: '#1e40af' }}>Visited Locations:</strong>
+                <ul style={{ margin: '4px 0 0 16px' }}>
+                  {record.locations.filter(Boolean).map((l, i) => <li key={i}>{l}</li>)}
+                </ul>
+              </div>
+            )}
+            {(record.customers || []).filter(c => c.name).length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <strong style={{ color: '#1e40af' }}>Customers ({record.customers.filter(c => c.name).length}):</strong>
+                <ul style={{ margin: '4px 0 0 16px' }}>
+                  {record.customers.filter(c => c.name).map((c, i) => (
+                    <li key={i} style={{ marginBottom: 4 }}>
+                      <b>{c.name}</b> {c.phone ? `(${c.phone})` : ''} {c.type ? `- ${c.type}` : ''}
+                      {(c.orders || []).length > 0 && (
+                        <div style={{ fontSize: '0.82rem', color: '#64748b' }}>Orders: {c.orders.map(o => `${o.packaging} x ${o.quantity}`).join(', ')}</div>
+                      )}
+                      {c.remark && <div style={{ fontSize: '0.82rem', color: '#64748b' }}>Remark: {c.remark}</div>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <Row label="Notes" val={record.notes} />
+            <Row label="Remarks" val={record.remarks} />
+            <div style={{ marginTop: 10, padding: '10px 14px', background: '#f0f7ff', borderRadius: 8 }}>
+              <strong style={{ color: '#1e40af' }}>Expenses:</strong>
+              <div>Food: ₹{record.expenses?.food ?? '-'} &nbsp;|&nbsp; Fuel: ₹{record.expenses?.fuel ?? '-'} &nbsp;|&nbsp; <b>Total: ₹{record.expenses?.total ?? '-'}</b></div>
+            </div>
+            {record.createdAt?.toDate && (
+              <div style={{ marginTop: 10, fontSize: '0.8rem', color: '#94a3b8' }}>
+                📅 Created: {record.createdAt.toDate().toLocaleString('en-IN')}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ lineHeight: 1.9, fontSize: '0.9rem', color: '#334155' }}>
+            <Row label="Report ID" val={record.reportId} />
+            <Row label="Demo Name" val={record.demoName || record.village} />
+            <Row label="Village" val={record.village} />
+            <Row label="Date" val={record.date} />
+            <Row label="Taluka" val={record.taluka} />
+            <Row label="Mantri" val={record.mantri} />
+            <Row label="Total Milk" val={record.totalMilk} />
+            <Row label="Active Sabhasad" val={record.activeSabhasad} />
+            <Row label="Team Members" val={record.teamMembers} />
+            <Row label="Entry By" val={record.entryBy} />
+            <Row label="Demo Remarks" val={record.demoRemarks} />
+            <Row label="Status" val={record.status} />
+            {(record.customers || []).length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <strong style={{ color: '#1e40af' }}>Customers ({record.customers.length}):</strong>
+                <ul style={{ margin: '4px 0 0 16px' }}>
+                  {record.customers.map((c, i) => (
+                    <li key={i}><b>{c.name}</b> ({c.mobile || '-'}) — {c.orderPackaging} × {c.orderQty} {c.remarks ? `| ${c.remarks}` : ''}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {record.createdAt?.toDate && (
+              <div style={{ marginTop: 10, fontSize: '0.8rem', color: '#94a3b8' }}>
+                📅 Created: {record.createdAt.toDate().toLocaleString('en-IN')}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={{ marginTop: 20, textAlign: 'right' }}>
+          <button onClick={onClose} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 24px', fontWeight: 700, cursor: 'pointer' }}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── EditModal (top-level so React preserves state across parent re-renders) ───
+function EditModal({ record, onClose, onSave, editSaving }) {
+  console.log("HistoryPage - EditModal record:", record);
+  const [form, setForm] = React.useState({ ...(record || {}) });
+  if (!record) return null;
+  const isField = (record.reportId || '').startsWith('#RF-');
+  const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
+  const setExp = (key, val) => setForm(prev => ({ ...prev, expenses: { ...(prev.expenses || {}), [key]: val } }));
+
+  const inputStyle = {
+    width: '100%', border: '1.5px solid #b6c7e6', borderRadius: 8,
+    padding: '8px 10px', fontFamily: 'inherit', fontSize: '0.88rem',
+    background: '#f8faff', outline: 'none', boxSizing: 'border-box',
+  };
+  const labelStyle = { fontWeight: 700, color: '#1e40af', fontSize: '0.8rem', display: 'block', marginBottom: 4 };
+  const fieldStyle = { marginBottom: 14 };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', maxWidth: 600, width: '100%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '2px solid #e0eaff', paddingBottom: 12 }}>
+          <h3 style={{ margin: 0, color: '#1e40af', fontWeight: 800, fontSize: '1.1rem' }}>
+            ✏️ Edit {isField ? 'Field Daily Form' : 'Demo Sales'} Record
+          </h3>
+          <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: '1rem' }}>✕</button>
+        </div>
+
+        {isField ? (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Officer Name</label>
+                <input style={inputStyle} value={form.officerName || ''} onChange={e => set('officerName', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Date</label>
+                <input type="date" style={inputStyle} value={form.date || ''} onChange={e => set('date', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Working Type</label>
+                <input style={inputStyle} value={form.workingType || ''} onChange={e => set('workingType', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>KMs Travelled</label>
+                <input style={inputStyle} value={form.kms || ''} onChange={e => set('kms', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Punch In</label>
+                <input style={inputStyle} value={form.punchIn || ''} onChange={e => set('punchIn', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Punch Out</label>
+                <input style={inputStyle} value={form.punchOut || ''} onChange={e => set('punchOut', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Total Hours</label>
+                <input style={inputStyle} value={form.hours || ''} onChange={e => set('hours', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Reviewer</label>
+                <input style={inputStyle} value={form.reviewer || ''} onChange={e => set('reviewer', e.target.value)} />
+              </div>
+            </div>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Reviewer Comment</label>
+              <input style={inputStyle} value={form.reviewerComment || ''} onChange={e => set('reviewerComment', e.target.value)} />
+            </div>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Notes</label>
+              <textarea style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} value={form.notes || ''} onChange={e => set('notes', e.target.value)} />
+            </div>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Remarks</label>
+              <textarea style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} value={form.remarks || ''} onChange={e => set('remarks', e.target.value)} />
+            </div>
+            <div style={{ background: '#f0f7ff', borderRadius: 10, padding: '14px 16px', marginBottom: 14 }}>
+              <label style={{ ...labelStyle, marginBottom: 10 }}>💰 Expenses</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={{ ...labelStyle, color: '#64748b' }}>Food (₹)</label>
+                  <input style={inputStyle} value={form.expenses?.food || ''} onChange={e => setExp('food', e.target.value)} />
+                </div>
+                <div>
+                  <label style={{ ...labelStyle, color: '#64748b' }}>Fuel (₹)</label>
+                  <input style={inputStyle} value={form.expenses?.fuel || ''} onChange={e => setExp('fuel', e.target.value)} />
+                </div>
+                <div>
+                  <label style={{ ...labelStyle, color: '#64748b' }}>Total (₹)</label>
+                  <input style={inputStyle} value={form.expenses?.total || ''} onChange={e => setExp('total', e.target.value)} />
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Demo Name</label>
+                <input style={inputStyle} value={form.demoName || ''} onChange={e => set('demoName', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Village</label>
+                <input style={inputStyle} value={form.village || ''} onChange={e => set('village', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Date</label>
+                <input type="date" style={inputStyle} value={form.date || ''} onChange={e => set('date', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Taluka</label>
+                <input style={inputStyle} value={form.taluka || ''} onChange={e => set('taluka', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Mantri</label>
+                <input style={inputStyle} value={form.mantri || ''} onChange={e => set('mantri', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Total Milk</label>
+                <input style={inputStyle} value={form.totalMilk || ''} onChange={e => set('totalMilk', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Active Sabhasad</label>
+                <input style={inputStyle} value={form.activeSabhasad || ''} onChange={e => set('activeSabhasad', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Team Members</label>
+                <input style={inputStyle} value={form.teamMembers || ''} onChange={e => set('teamMembers', e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Entry By</label>
+                <input style={inputStyle} value={form.entryBy || ''} onChange={e => set('entryBy', e.target.value)} />
+              </div>
+            </div>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Demo Remarks</label>
+              <textarea style={{ ...inputStyle, minHeight: 70, resize: 'vertical' }} value={form.demoRemarks || ''} onChange={e => set('demoRemarks', e.target.value)} />
+            </div>
+          </>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8, paddingTop: 16, borderTop: '1px solid #e0eaff' }}>
+          <button
+            onClick={onClose}
+            style={{ padding: '10px 22px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer' }}
+          >Cancel</button>
+          <button
+            onClick={() => onSave(form)}
+            disabled={editSaving}
+            style={{ padding: '10px 26px', background: editSaving ? '#93c5fd' : '#2563eb', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, cursor: editSaving ? 'not-allowed' : 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.3)' }}
+          >
+            {editSaving ? '⏳ Saving...' : '💾 Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
