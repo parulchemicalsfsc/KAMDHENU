@@ -7,7 +7,7 @@
   display: none;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 1024px) {
   .navbar-hamburger {
     display: flex !important;
     background: none;
@@ -339,7 +339,7 @@ button:hover, .btn-primary:hover, .btn-outline:hover, .btn-glow:hover {
 }
 
 /* Responsive Layout */
-@media (max-width: 700px) {
+@media (max-width: 1024px) {
   .form-container {
     padding: 1rem 2vw 1.2rem 2vw;
     margin: 0;
@@ -884,7 +884,7 @@ ul li:hover .text-gray-500 {
 }
 
 /* Mobile View Adjustments */
-@media (max-width: 700px) {
+@media (max-width: 1024px) {
   .home-dashboard {
     padding: 16px;
   }

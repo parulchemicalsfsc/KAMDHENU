@@ -267,9 +267,9 @@ const DemoSalesList = () => {
   const [lastVillageId, setLastVillageId] = useState(null);
   const [lastVillageName, setLastVillageName] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 600);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 600);
+    const handleResize = () => setIsMobile(window.innerWidth <= 900);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -2407,12 +2407,15 @@ ${paymentLines || "—"}
         className="form-container"
         style={{
           maxWidth: 900,
-          margin: "40px auto 32px auto",
+          margin: isMobile ? "0 auto" : "40px auto 32px auto",
           minHeight: "calc(100vh - 120px)",
           background: "#f7fafd",
-          borderRadius: 18,
-          boxShadow: "0 4px 24px #2563eb22",
-          padding: "18px 0 0 0",
+          borderRadius: isMobile ? 0 : 18,
+          boxShadow: isMobile ? "none" : "0 4px 24px #2563eb22",
+          padding: isMobile ? "18px 10px 10px 10px" : "18px 24px 24px 24px",
+          boxSizing: "border-box",
+          width: "100%",
+          overflowX: "hidden"
         }}
       >
         <h2

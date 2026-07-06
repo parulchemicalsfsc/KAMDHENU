@@ -77,7 +77,7 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleResize = () => {
-      setMobile(window.innerWidth <= 700);
+      setMobile(window.innerWidth <= 1024);
     };
     handleResize();
     window.addEventListener("resize", handleResize);

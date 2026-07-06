@@ -47,12 +47,12 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [newlyAddedVillageName, setNewlyAddedVillageName] = useState(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 600);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
   const searchInputRef = useRef(null);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 600);
+    const handleResize = () => setIsMobile(window.innerWidth <= 900);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
