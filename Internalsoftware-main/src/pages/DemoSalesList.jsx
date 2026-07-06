@@ -2490,7 +2490,7 @@ ${paymentLines || "—"}
             </div>
           </div>
 
-          <div style={{ padding: "24px" }}>
+          <div style={{ padding: isMobile ? "12px 6px" : "24px", boxSizing: "border-box", width: "100%" }}>
             {currentStep === 1 && (
               <div>
                 {/* Dairy Info */}
@@ -2502,7 +2502,9 @@ ${paymentLines || "—"}
                     borderRadius: 14,
                     boxShadow: "0 2px 12px #2563eb11",
                     background: "#fff",
-                    padding: "24px 18px",
+                    padding: isMobile ? "16px 12px" : "24px 18px",
+                    boxSizing: "border-box",
+                    width: "100%"
                   }}
                 >
                   <h3
@@ -2876,6 +2878,8 @@ ${paymentLines || "—"}
                     maxWidth: 900,
                     marginLeft: "auto",
                     marginRight: "auto",
+                    boxSizing: "border-box",
+                    width: "100%"
                   }}
                 >
                   {/* Header with gradient */}
@@ -3311,7 +3315,9 @@ ${paymentLines || "—"}
                     maxWidth: 700,
                     marginLeft: "auto",
                     marginRight: "auto",
-                    padding: "24px 18px",
+                    padding: isMobile ? "16px 12px" : "24px 18px",
+                    boxSizing: "border-box",
+                    width: "100%"
                   }}
                 >
                   {/* File Upload Header */}
@@ -4595,7 +4601,9 @@ ${paymentLines || "—"}
                     borderRadius: 14,
                     boxShadow: "0 2px 12px #2563eb22",
                     background: "#fff",
-                    padding: "24px 18px",
+                    padding: isMobile ? "16px 12px" : "24px 18px",
+                    boxSizing: "border-box",
+                    width: "100%"
                   }}
                 >
                   <h3
@@ -4796,6 +4804,8 @@ ${paymentLines || "—"}
                     boxShadow: "0 2px 12px #2563eb11",
                     background: "#fff",
                     padding: "clamp(14px, 4vw, 20px)",
+                    boxSizing: "border-box",
+                    width: "100%"
                   }}
                 >
                   <div
@@ -5184,7 +5194,9 @@ ${paymentLines || "—"}
                     borderRadius: 14,
                     boxShadow: "0 2px 12px #2563eb11",
                     background: "#fff",
-                    padding: "24px 18px",
+                    padding: isMobile ? "16px 12px" : "24px 18px",
+                    boxSizing: "border-box",
+                    width: "100%"
                   }}
                 >
                   <h3

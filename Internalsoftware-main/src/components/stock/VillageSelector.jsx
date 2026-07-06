@@ -278,7 +278,7 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
               <span style={{ color: "#3b82f6" }}>🔍</span> Search Existing Village
             </label>
             <div style={{ position: "relative" }}>
-              <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
+              <div style={{ display: "flex", alignItems: "center", position: "relative", width: "100%", boxSizing: "border-box" }}>
                 <span style={{ position: "absolute", left: 16, color: "#94a3b8", fontSize: "1.1rem" }}>🔍</span>
                 <input
                   ref={searchInputRef}
@@ -479,8 +479,8 @@ export const VillageSelector = ({ villageOptions, selectedVillageId, onVillageCh
             }}>
               <span style={{ color: "#10b981" }}>➕</span> Add New Village
             </label>
-            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: "10px", alignItems: "stretch" }}>
-              <div style={{ position: "relative", flex: 1 }}>
+            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: "10px", alignItems: "stretch", width: "100%", boxSizing: "border-box" }}>
+              <div style={{ position: "relative", flex: 1, width: "100%", boxSizing: "border-box" }}>
                 <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: "1.1rem" }}>🏡</span>
                 <input
                   type="text"
