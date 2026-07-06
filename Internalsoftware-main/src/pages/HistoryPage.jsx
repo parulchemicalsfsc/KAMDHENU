@@ -351,7 +351,7 @@ export default function HistoryPage() {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '2px solid #e0eaff', paddingBottom: 12 }}>
             <h3 style={{ margin: 0, color: '#1e40af', fontWeight: 800, fontSize: '1.1rem' }}>
-              {isField ? '📋 Daily Form Details' : '📊 Demo Sales Details'}
+              {isField ? '📋 Field Daily Form Details' : '📊 Demo Sales Details'}
             </h3>
             <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: '1rem' }}>✕</button>
           </div>
@@ -460,7 +460,7 @@ export default function HistoryPage() {
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '2px solid #e0eaff', paddingBottom: 12 }}>
             <h3 style={{ margin: 0, color: '#1e40af', fontWeight: 800, fontSize: '1.1rem' }}>
-              ✏️ Edit {isField ? 'Daily Form' : 'Demo Sales'} Record
+              ✏️ Edit {isField ? 'Field Daily Form' : 'Demo Sales'} Record
             </h3>
             <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: '1rem' }}>✕</button>
           </div>
@@ -603,7 +603,7 @@ export default function HistoryPage() {
         {/* ── Tab Buttons ── */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
           {[
-            { key: 'field', label: '📋 Daily Form History' },
+            { key: 'field', label: '📋 Field Daily Form History' },
             { key: 'demo',  label: '📊 Demo Sales History' },
             { key: 'mom',   label: '🗒️ MoM History' },
           ].map(tab => (
@@ -802,7 +802,7 @@ export default function HistoryPage() {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px', marginBottom: 16 }}>
                   <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#1e293b' }}>
-                    {activeTab === 'field' ? '📋 Daily Form Reports' : '📊 Demo Sales Reports'}
+                    {activeTab === 'field' ? '📋 Field Daily Form Reports' : '📊 Demo Sales Reports'}
                   </h2>
                   <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 700 }}>
                     {currentData.length} record{currentData.length !== 1 ? 's' : ''} on this page
@@ -923,11 +923,11 @@ function ReportCard({ report, onView, onEdit }) {
       const isFieldReport = (report.reportId || '').startsWith('#RF-');
 
       if (isFieldReport) {
-        // ── Daily Form PDF ──
+        // ── Field Daily Form PDF ──
         let y = 15;
         docPdf.setFontSize(16);
         docPdf.setTextColor(13, 110, 253);
-        docPdf.text('Daily Form Report', 14, y); y += 10;
+        docPdf.text('Field Daily Form Report', 14, y); y += 10;
 
         docPdf.setFontSize(10);
         docPdf.setTextColor(60, 60, 60);

@@ -43,6 +43,16 @@ import {
 
 const storage = getStorage();
 
+const formatDateToDDMMYY = (dateStr) => {
+  if (!dateStr) return "";
+  const parts = dateStr.split('-');
+  if (parts.length === 3 && parts[0].length === 4) {
+    const [year, month, day] = parts;
+    return `${day}-${month}-${year.slice(-2)}`;
+  }
+  return dateStr;
+};
+
 // Get packaging names array for dropdown display (without prices)
 const packagingNames = getPackagingNames();
 
@@ -1806,7 +1816,7 @@ const DemoSalesList = () => {
         "-";
       const resolvedTaluka = demoInfo.taluka || "-";
       const resolvedMantri = demoInfo.mantri || "-";
-      const resolvedDate = demoInfo.date || "-";
+      const resolvedDate = formatDateToDDMMYY(demoInfo.date) || "-";
 
       const getBase64FromUrl = async (url) => {
         if (!url) return null;
@@ -1941,7 +1951,7 @@ const DemoSalesList = () => {
         "-";
       const resolvedTaluka = demoInfo.taluka || "-";
       const resolvedMantri = demoInfo.mantri || "-";
-      const resolvedDate = demoInfo.date || "-";
+      const resolvedDate = formatDateToDDMMYY(demoInfo.date) || "-";
 
       const getBase64FromUrl = async (url) => {
         if (!url) return null;
@@ -2077,7 +2087,7 @@ const DemoSalesList = () => {
 
       doc.setFontSize(11);
       const lines = [
-        `Date: ${demoInfo.date || "-"}`,
+        `Date: ${formatDateToDDMMYY(demoInfo.date) || "-"}`,
         `Village: ${demoInfo.village || "-"}`,
         `Taluka: ${demoInfo.taluka || "-"}`,
         `Mantri: ${demoInfo.mantri || "-"}`,
@@ -2149,7 +2159,7 @@ const DemoSalesList = () => {
         y = doc.lastAutoTable.finalY + 6;
       }
 
-      doc.save(`DemoSales_${demoInfo.date || "export"}.pdf`);
+      doc.save(`DemoSales_${formatDateToDDMMYY(demoInfo.date) || "export"}.pdf`);
       toast.success("PDF downloaded successfully! 📄");
     } catch (err) {
       console.error("PDF generation failed:", err);

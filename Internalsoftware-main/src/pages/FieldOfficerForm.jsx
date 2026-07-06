@@ -101,6 +101,17 @@ export default function FieldOfficerForm() {
     }
   };
 
+  const handleOfficerSelectChange = (e) => {
+    const val = e.target.value;
+    if (val === 'ADD_NEW') {
+      setShowAddOfficer(true);
+      setForm({ ...form, officerName: '' });
+    } else {
+      setForm({ ...form, officerName: val });
+      setShowAddOfficer(false);
+    }
+  };
+
   const toggleCustomerExpansion = (index) => {
     const updated = [...customers];
     updated[index].isExpanded = !updated[index].isExpanded;
@@ -210,7 +221,7 @@ export default function FieldOfficerForm() {
 
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('Daily Form Report', 14, y);
+      doc.text('Field Daily Form Report', 14, y);
       y += lineGap + 2;
 
       doc.setFontSize(11);
@@ -348,7 +359,7 @@ export default function FieldOfficerForm() {
                 <select 
                   className="select-field"
                   value={form.officerName}
-                  onChange={(e) => setForm({ ...form, officerName: e.target.value })}
+                  onChange={handleOfficerSelectChange}
                 >
                   <option value="">Select Officer</option>
                   {officers.map((o, i) => (
@@ -356,49 +367,65 @@ export default function FieldOfficerForm() {
                       {o.name} ({o.code})
                     </option>
                   ))}
+                  <option value="ADD_NEW">+ Add New Field Officer...</option>
                 </select>
               </div>
 
-              <div className="field-group">
-                <label className="field-label">OFFICER NAME:</label>
-                <input 
-                  type="text" 
-                  className="input-field" 
-                  placeholder="Full Name"
-                  value={newOfficer.name} 
-                  onChange={(e) => setNewOfficer({ ...newOfficer, name: e.target.value })}
-                />
-              </div>
+              {showAddOfficer && (
+                <div style={{
+                  border: '1.5px dashed #3b82f6',
+                  borderRadius: '12px',
+                  padding: '18px',
+                  marginTop: '16px',
+                  background: '#f8fafc',
+                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.05)'
+                }}>
+                  <h4 style={{ margin: '0 0 16px 0', color: '#1d4ed8', fontWeight: 700, fontSize: '0.95rem' }}>
+                    + Add New Field Officer
+                  </h4>
+                  
+                  <div className="field-group" style={{ marginBottom: '14px' }}>
+                    <label className="field-label">OFFICER NAME:</label>
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      placeholder="Full Name"
+                      value={newOfficer.name} 
+                      onChange={(e) => setNewOfficer({ ...newOfficer, name: e.target.value })}
+                    />
+                  </div>
 
-              <div className="field-group">
-                <label className="field-label">OFFICER CODE:</label>
-                <input 
-                  type="text" 
-                  className="input-field" 
-                  placeholder="Code (e.g. GJ03)"
-                  value={newOfficer.code} 
-                  onChange={(e) => setNewOfficer({ ...newOfficer, code: e.target.value })}
-                />
-              </div>
+                  <div className="field-group" style={{ marginBottom: '14px' }}>
+                    <label className="field-label">OFFICER CODE:</label>
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      placeholder="Code (e.g. GJ03)"
+                      value={newOfficer.code} 
+                      onChange={(e) => setNewOfficer({ ...newOfficer, code: e.target.value })}
+                    />
+                  </div>
 
-              <div className="field-group">
-                <label className="field-label">OFFICER TYPE:</label>
-                <select 
-                  className="select-field"
-                  value={newOfficer.type} 
-                  onChange={(e) => setNewOfficer({ ...newOfficer, type: e.target.value })}
-                >
-                  <option value="Full Time">Full Time</option>
-                  <option value="Part Time">Part Time</option>
-                </select>
-              </div>
+                  <div className="field-group" style={{ marginBottom: '18px' }}>
+                    <label className="field-label">OFFICER TYPE:</label>
+                    <select 
+                      className="select-field"
+                      value={newOfficer.type} 
+                      onChange={(e) => setNewOfficer({ ...newOfficer, type: e.target.value })}
+                    >
+                      <option value="Full Time">Full Time</option>
+                      <option value="Part Time">Part Time</option>
+                    </select>
+                  </div>
 
-              <div className="btn-row">
-                <button className="btn-text" onClick={() => setShowAddOfficer(false)}>Cancel</button>
-                <button className="btn-blue" onClick={handleAddOfficer}>
-                  <Icons.CheckCircle /> Add Officer
-                </button>
-              </div>
+                  <div className="btn-row" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <button className="btn-text" onClick={() => setShowAddOfficer(false)}>Cancel</button>
+                    <button className="btn-blue" onClick={handleAddOfficer}>
+                      <Icons.CheckCircle /> Add Officer
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </section>

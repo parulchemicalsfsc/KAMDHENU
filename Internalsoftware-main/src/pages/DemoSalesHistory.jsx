@@ -9,6 +9,16 @@ import "../style/form.css";
 
 import { notoSansGujarati } from "../utils/pdfUtils";
 
+const formatDateToDDMMYY = (dateStr) => {
+  if (!dateStr) return "";
+  const parts = dateStr.split('-');
+  if (parts.length === 3 && parts[0].length === 4) {
+    const [year, month, day] = parts;
+    return `${day}-${month}-${year.slice(-2)}`;
+  }
+  return dateStr;
+};
+
 
 export default function DemoSalesHistory() {
   const [copiedId, setCopiedId] = useState(null);
@@ -130,7 +140,7 @@ export default function DemoSalesHistory() {
                       <select style={{ width: '92%', borderRadius: 6, padding: '4px' }} value={dateFilter} onChange={e => setDateFilter(e.target.value)}>
                         <option value="">All</option>
                         {[...new Set(records.map(r => r.date).filter(Boolean))].sort().map(d => (
-                          <option key={d} value={d}>{d}</option>
+                          <option key={d} value={d}>{formatDateToDDMMYY(d)}</option>
                         ))}
                       </select>
                     </th>
@@ -192,7 +202,7 @@ export default function DemoSalesHistory() {
                         }
                       });
                       const netSale = totalSales + totalStock;
-                      let waSummary = `*${getDemoName(r)}*\nDate: ${r.date || '-'}\nMilk Collection: ${r.totalMilk || '-'}\nSabhasad Active: ${r.activeSabhasad || '-'}\nTeam: ${r.teamMembers || '-'}\n\n*Total Sales: ${totalSales}*\n`;
+                      let waSummary = `*${getDemoName(r)}*\nDate: ${formatDateToDDMMYY(r.date) || '-'}\nMilk Collection: ${r.totalMilk || '-'}\nSabhasad Active: ${r.activeSabhasad || '-'}\nTeam: ${r.teamMembers || '-'}\n\n*Total Sales: ${totalSales}*\n`;
                       waSummary += `Package-wise Sales:`;
                       Object.entries(packagingSales).forEach(([pack, qty]) => {
                         waSummary += `\n${pack}: ${qty}`;
@@ -223,7 +233,7 @@ export default function DemoSalesHistory() {
 
                           // Header info
                           sheet.addRow(["Demo Name", safe(getDemoName(r))]); row++;
-                          sheet.addRow(["Date", safe(r.date)]); row++;
+                          sheet.addRow(["Date", safe(formatDateToDDMMYY(r.date))]); row++;
                           sheet.addRow(["Village", safe(r.village)]); row++;
                           sheet.addRow(["Taluka", safe(r.taluka)]); row++;
                           sheet.addRow(["Mantri", safe(r.mantri)]); row++;
@@ -269,7 +279,7 @@ export default function DemoSalesHistory() {
 
                           // Write buffer & save Excel file
                           const buf = await workbook.xlsx.writeBuffer();
-                          const filename = `DemoSales_${safe(r.date)}_${r.id || ''}_${Date.now()}.xlsx`;
+                          const filename = `DemoSales_${safe(formatDateToDDMMYY(r.date))}_${r.id || ''}_${Date.now()}.xlsx`;
                           const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                           saveAs(blob, filename);
 
@@ -307,7 +317,7 @@ export default function DemoSalesHistory() {
 
                           doc.setFontSize(11);
                           doc.text(`Demo: ${getDemoName(r)}`, 14, y); y += 7;
-                          doc.text(`Date: ${r.date || "-"}`, 14, y); y += 7;
+                          doc.text(`Date: ${formatDateToDDMMYY(r.date) || "-"}`, 14, y); y += 7;
                           doc.text(`Village: ${r.village || "-"}`, 14, y); y += 7;
                           doc.text(`Taluka: ${r.taluka || "-"}`, 14, y); y += 7;
                           doc.text(`Mantri: ${r.mantri || "-"}`, 14, y); y += 7;
@@ -348,7 +358,7 @@ export default function DemoSalesHistory() {
                             y = doc.lastAutoTable.finalY + 6;
                           }
 
-                          doc.save(`DemoSales_${r.date || 'export'}.pdf`);
+                          doc.save(`DemoSales_${formatDateToDDMMYY(r.date) || 'export'}.pdf`);
                           setDownloadedId(r.id);
                           setTimeout(() => setDownloadedId(null), 1500);
 
@@ -362,7 +372,7 @@ export default function DemoSalesHistory() {
                       return (
                         <tr key={r.id}>
                           <td>{getDemoName(r)}</td>
-                          <td>{r.date}</td>
+                          <td>{formatDateToDDMMYY(r.date)}</td>
                           <td>{(r.customers || []).reduce((sum, c) => sum + (Number(c.orderQty) || 0), 0)}</td>
                           <td>{(r.stockAtDairy || []).reduce((sum, s) => sum + (Number(s.quantity) || 0), 0)}</td>
                           <td>
@@ -418,7 +428,6 @@ export default function DemoSalesHistory() {
                 </tbody>
               </table>
             </div>
-// --- Filtering state and logic moved to top of component ---
           </>
         )}
         {/* Modal for full record view */}
@@ -429,7 +438,7 @@ export default function DemoSalesHistory() {
               <table style={{ width: '100%', borderCollapse: 'collapse', margin: '10px 0 0 0' }}>
                 <tbody>
                   <tr><td style={{ fontWeight: 600, color: '#2563eb' }}>Demo Name</td><td>{getDemoName(selected)}</td></tr>
-                  <tr><td style={{ fontWeight: 600, color: '#2563eb' }}>Date</td><td>{selected.date}</td></tr>
+                  <tr><td style={{ fontWeight: 600, color: '#2563eb' }}>Date</td><td>{formatDateToDDMMYY(selected.date)}</td></tr>
                   <tr><td style={{ fontWeight: 600, color: '#2563eb' }}>Village</td><td>{selected.village}</td></tr>
                   <tr><td style={{ fontWeight: 600, color: '#2563eb' }}>Taluka</td><td>{selected.taluka}</td></tr>
                   <tr><td style={{ fontWeight: 600, color: '#2563eb' }}>Mantri</td><td>{selected.mantri}</td></tr>

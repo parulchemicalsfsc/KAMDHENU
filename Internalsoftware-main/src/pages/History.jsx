@@ -233,7 +233,7 @@ export default function History() {
     const docPdf = new jsPDF();
     docPdf.setFont('helvetica');
     docPdf.setFontSize(16);
-    docPdf.text('Daily Form Data', 14, 18);
+    docPdf.text('Field Daily Form Data', 14, 18);
     docPdf.setFontSize(11);
     docPdf.text(`Officer: ${record.officerName || '-'} | Date: ${record.date || '-'}`, 14, 28);
     docPdf.text(`Working Type: ${record.workingType || '-'} | KMs: ${record.kms || '-'}`, 14, 36);
@@ -329,7 +329,7 @@ export default function History() {
 
         {/* ── Header ── */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ color: '#174ea6', fontWeight: 800, margin: 0 }}>Daily Form History</h2>
+          <h2 style={{ color: '#174ea6', fontWeight: 800, margin: 0 }}>Field Daily Form History</h2>
           {hasActiveFilters && (
             <span style={{
               background: '#e3f0fb', color: '#1E88E5', borderRadius: 20,

@@ -120,7 +120,7 @@ export default function Home() {
     quickActions.push({
       to: "/form",
       icon: "📝",
-      title: "Daily Form",
+      title: "Field Daily Form",
       description:
         "Record today's milk and chemical collection data across your assigned route.",
     });

@@ -25,32 +25,14 @@ export default function Navbar() {
   // Define base navLinks array for navigation
   const baseNavLinks = [
     { to: '/', label: 'Home' },
-    { to: '/form', label: 'Daily Form' },
-    { to: '/demo-sales-list', label: 'Demo Sales List' },
-    { to: '/member-page', label: 'Member' },
-    { to: '/route-planner', label: 'Route Planner' },
     { to: '/view-route', label: 'View Route' },
-    { to: '/stock-dashboard', label: 'Stock Dashboard' },
-    { to: '/history', label: 'History' },
   ];
 
   // Filter links dynamically based on user role and history permissions
   const navLinks = baseNavLinks.filter(link => {
     // Open pages for all authenticated users
-    if (['/', '/member-page', '/route-planner', '/view-route', '/stock-dashboard'].includes(link.to)) {
+    if (['/', '/view-route'].includes(link.to)) {
       return true;
-    }
-    // Demo sales is open to all users
-    if (link.to === '/demo-sales-list') {
-      return true;
-    }
-    // Daily Form is restricted to Admin, Manager, and Field Officer
-    if (link.to === '/form') {
-      return ['admin', 'manager', 'field_officer'].includes(role);
-    }
-    // History requires Admin role or explicit access granted by Admin
-    if (link.to === '/history') {
-      return role === 'admin' || canViewHistory;
     }
     return false;
   });
