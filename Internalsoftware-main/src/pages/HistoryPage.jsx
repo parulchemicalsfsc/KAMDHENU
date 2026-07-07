@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Navbar from '../components/Navbar';
+import useAuth from '../hooks/useAuth';
 import { db } from '../firebase';
 import {
   collection, getDocs, query, orderBy, where,
-  limit, startAfter, updateDoc, deleteDoc, doc
+  limit, startAfter, updateDoc, deleteDoc, doc,
+  addDoc, Timestamp
 } from 'firebase/firestore';
 import '../style/History.css';
 import '../style/DailyForm.css';
@@ -19,8 +22,12 @@ function buildCacheKey(tab, officer, dateFrom, dateTo, pageIndex) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function HistoryPage() {
+  const navigate = useNavigate();
+  const { role } = useAuth();
   // Tab: 'field' | 'demo' | 'mom'
   const [activeTab, setActiveTab] = useState('field');
+  // Track selected meeting ID for each collection folder dropdown
+  const [selectedMeetingIds, setSelectedMeetingIds] = useState({});
 
   // Data
   const [fieldData, setFieldData]   = useState([]);
@@ -229,7 +236,16 @@ export default function HistoryPage() {
 
       doc.setTextColor(13, 110, 253);
       doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
       doc.text(mom.meetingName || 'Untitled Meeting', 14, y); y += 8;
+
+      // Collection Name
+      if (mom.collectionName) {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(80, 80, 80);
+        doc.text(`Collection: ${mom.collectionName}`, 14, y); y += 6;
+      }
 
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
@@ -323,13 +339,13 @@ export default function HistoryPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'sans-serif', paddingBottom: 80 }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'sans-serif', paddingBottom: 80, overflowX: 'hidden' }}>
       <Navbar />
 
-      <main style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>
+      <main style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px', overflowX: 'hidden', width: '100%' }}>
 
         {/* ── Tab Buttons ── */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {[
             { key: 'field', label: '📋 Field Daily Form History' },
             { key: 'demo',  label: '📊 Demo Sales History' },
@@ -339,11 +355,12 @@ export default function HistoryPage() {
               key={tab.key}
               onClick={() => switchTab(tab.key)}
               style={{
-                padding: '10px 22px', borderRadius: 14, fontWeight: 700, fontSize: '0.9rem',
+                padding: '8px 14px', borderRadius: 14, fontWeight: 700, fontSize: '0.82rem',
                 border: 'none', cursor: 'pointer', transition: 'all 0.2s',
                 background: activeTab === tab.key ? '#3b82f6' : '#fff',
                 color: activeTab === tab.key ? '#fff' : '#64748b',
                 boxShadow: activeTab === tab.key ? '0 6px 20px rgba(59,130,246,0.35)' : '0 1px 4px rgba(0,0,0,0.06)',
+                flex: '1 1 auto', whiteSpace: 'nowrap',
               }}
             >{tab.label}</button>
           ))}
@@ -352,11 +369,43 @@ export default function HistoryPage() {
         {/* ── MoM Tab Content ── */}
         {activeTab === 'mom' ? (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
               <h2 style={{ margin: 0, fontWeight: 800, color: '#1e293b', fontSize: '1.2rem' }}>🗒️ Minutes of Meeting Records</h2>
-              <span style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 20, padding: '3px 14px', fontWeight: 700, fontSize: '0.82rem' }}>
-                {momData.length} record{momData.length !== 1 ? 's' : ''}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  onClick={async () => {
+                    const name = prompt("Enter new collection name (e.g. Kamdhenu, Parul Chem):");
+                    if (name && name.trim()) {
+                      const trimmed = name.trim();
+                      try {
+                        const q = query(collection(db, 'mom_collections'), where('name', '==', trimmed));
+                        const snap = await getDocs(q);
+                        if (snap.empty) {
+                          await addDoc(collection(db, 'mom_collections'), {
+                            name: trimmed,
+                            createdAt: Timestamp.now()
+                          });
+                        }
+                        navigate(`/mom-generator?collection=${encodeURIComponent(trimmed)}`);
+                      } catch (err) {
+                        console.error("Error creating collection:", err);
+                        toast.error("Failed to save new collection to database");
+                      }
+                    }
+                  }}
+                  style={{
+                    background: '#2563eb', color: '#fff', border: 'none',
+                    borderRadius: 10, padding: '8px 16px', fontWeight: 700,
+                    fontSize: '0.82rem', cursor: 'pointer', display: 'flex',
+                    alignItems: 'center', gap: 6, boxShadow: '0 4px 12px rgba(37,99,235,0.2)'
+                  }}
+                >
+                  ➕ New Collection Flow
+                </button>
+                <span style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 20, padding: '4px 14px', fontWeight: 700, fontSize: '0.82rem' }}>
+                  {momData.length} record{momData.length !== 1 ? 's' : ''}
+                </span>
+              </div>
             </div>
 
             {momLoading ? (
@@ -371,141 +420,224 @@ export default function HistoryPage() {
                 <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Create meetings from the MoM Form page.</p>
               </div>
             ) : (
-              <div style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 16px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}>
-                {momData.map((mom, idx) => {
-                  const isExpanded = expandedMomId === mom.id;
-                  const allP = [...(Array.isArray(mom.participants) ? mom.participants : []), mom.manualParticipant].filter(Boolean);
-                  const dateStr = mom.date || (mom.timestamp?.toDate ? mom.timestamp.toDate().toLocaleDateString('en-IN') : '—');
-                  const createdAt = mom.timestamp?.toDate ? mom.timestamp.toDate().toLocaleString('en-IN') : null;
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {(() => {
+                  // 1. Group meetings by collectionName
+                  const groupedMoms = momData.reduce((acc, mom) => {
+                    const colName = mom.collectionName?.trim() || 'General / Uncategorized';
+                    if (!acc[colName]) acc[colName] = [];
+                    acc[colName].push(mom);
+                    return acc;
+                  }, {});
 
-                  return (
-                    <div key={mom.id} style={{ borderBottom: idx < momData.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                      {/* Accordion Header */}
-                      <div
-                        style={{
-                          padding: '14px 20px', display: 'flex', justifyContent: 'space-between',
-                          alignItems: 'center', background: isExpanded ? '#eff6ff' : '#fff',
-                          transition: 'background 0.2s', userSelect: 'none',
-                        }}
-                      >
-                        {/* Clickable area */}
+                  // 2. Sort meetings inside each group chronologically (oldest to newest)
+                  Object.keys(groupedMoms).forEach(colName => {
+                    groupedMoms[colName].sort((a, b) => {
+                      const dateA = a.date || '';
+                      const dateB = b.date || '';
+                      return dateA.localeCompare(dateB);
+                    });
+                  });
+
+                  // 3. Render each collection as an expandable folder
+                  return Object.keys(groupedMoms).sort().map(colName => {
+                    const meetings = groupedMoms[colName];
+                    const isColExpanded = expandedMomId === colName; // Use expandedMomId to track expanded collection name
+
+                    return (
+                      <div key={colName} style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
+                        {/* Collection Folder Header */}
                         <div
-                          onClick={() => setExpandedMomId(prev => prev === mom.id ? null : mom.id)}
-                          style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0, cursor: 'pointer' }}
+                          onClick={() => setExpandedMomId(prev => prev === colName ? null : colName)}
+                          style={{
+                            padding: '16px 20px', display: 'flex', justifyContent: 'space-between',
+                            alignItems: 'center', background: isColExpanded ? '#eff6ff' : '#fff',
+                            borderBottom: isColExpanded ? '1px solid #dbeafe' : 'none',
+                            cursor: 'pointer', userSelect: 'none', transition: 'background 0.2s'
+                          }}
                         >
-                          <div style={{
-                            width: 44, height: 44, borderRadius: '50%',
-                            border: `2px solid ${isExpanded ? '#3b82f6' : '#93c5fd'}`,
-                            background: mom.image ? 'transparent' : '#eff6ff',
-                            overflow: 'hidden', flexShrink: 0,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}>
-                            {mom.image ? <img src={mom.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '1.2rem' }}>🗒️</span>}
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontWeight: 800, color: isExpanded ? '#1e40af' : '#1e293b', fontSize: '0.98rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {mom.meetingName || 'Untitled Meeting'}
-                            </div>
-                            <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                              <span>📅 {dateStr}</span>
-                              <span>•</span>
-                              <span>👥 {allP.length} participant{allP.length !== 1 ? 's' : ''}</span>
-                              <span>•</span>
-                              <span>📌 {(mom.points || []).length} point{(mom.points || []).length !== 1 ? 's' : ''}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <span style={{ fontSize: '1.5rem' }}>📁</span>
+                            <div>
+                              <div style={{ fontWeight: 800, color: isColExpanded ? '#1e40af' : '#1e293b', fontSize: '1.05rem' }}>
+                                {colName}
+                              </div>
+                              <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 2 }}>
+                                👥 {meetings.length} Meeting{meetings.length !== 1 ? 's' : ''} in flow
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        {/* Action buttons + toggle */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 12 }}>
-                          <button
-                            onClick={() => setDeleteConfirmRecord({ ...mom, _collection: 'demo_moms' })}
-                            title="Delete MoM"
-                            style={{ background: '#fee2e2', color: '#dc2626', border: '1.5px solid #fca5a5', borderRadius: 8, padding: '5px 10px', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' }}
-                          >🗑️</button>
-                          <span
-                            onClick={() => setExpandedMomId(prev => prev === mom.id ? null : mom.id)}
-                            style={{ background: isExpanded ? '#dbeafe' : '#f0f7ff', color: '#2563eb', borderRadius: 20, padding: '3px 12px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #bfdbfe', whiteSpace: 'nowrap', cursor: 'pointer' }}
-                          >
-                            {isExpanded ? '▲ Hide' : '▼ Show'}
+                          <span style={{ background: isColExpanded ? '#dbeafe' : '#f0f7ff', color: '#2563eb', borderRadius: 20, padding: '4px 12px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #bfdbfe', flexShrink: 0 }}>
+                            {isColExpanded ? '▲ Close Flow' : '▼ Open Flow'}
                           </span>
                         </div>
-                      </div>
 
-                      {/* Accordion Body */}
-                      {isExpanded && (
-                        <div style={{ padding: '16px 20px 20px', background: '#f8fbff', borderTop: '1px solid #dbeafe' }}>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
-                            {mom.image && (
-                              <img src={mom.image} alt="meeting" style={{ width: 100, height: 100, borderRadius: 10, objectFit: 'cover', border: '2px solid #93c5fd', flexShrink: 0 }} />
-                            )}
-                            <div style={{ flex: 1, minWidth: 200 }}>
+                        {/* Timeline Flow */}
+                        {isColExpanded && (() => {
+                          const currentSelId = selectedMeetingIds[colName] || 'all';
+                          const filteredMeetings = currentSelId === 'all'
+                            ? meetings
+                            : meetings.filter(m => m.id === currentSelId);
 
-                              {/* Location */}
-                              {mom.location?.lat && (
-                                <div style={{ marginBottom: 10, fontSize: '0.82rem', color: '#64748b' }}>
-                                  📍 {mom.location.lat}, {mom.location.lng}
-                                </div>
+                          return (
+                            <div style={{ padding: '16px 12px', background: '#f8fbff', position: 'relative', overflowX: 'hidden' }}>
+                              {/* Dropdown Selector for Meetings */}
+                              <div style={{
+                                marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8,
+                                background: '#fff', padding: '10px 14px',
+                                borderRadius: 10, border: '1px solid #bfdbfe'
+                              }}>
+                                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#1e3a8a' }}>
+                                  📂 Select Meeting:
+                                </span>
+                                <select
+                                  value={currentSelId}
+                                  onChange={(e) => setSelectedMeetingIds(prev => ({ ...prev, [colName]: e.target.value }))}
+                                  style={{
+                                    padding: '6px 12px', borderRadius: 8, border: '1px solid #dbeafe',
+                                    fontSize: '0.82rem', fontWeight: 700, color: '#3b82f6', background: '#eff6ff',
+                                    outline: 'none', cursor: 'pointer', width: '100%', maxWidth: '100%'
+                                  }}
+                                >
+                                  <option value="all">🌐 Show All Flow Timeline</option>
+                                  {meetings.map((mom, mIdx) => (
+                                    <option key={mom.id} value={mom.id}>
+                                      {mIdx + 1}. {mom.meetingName || 'Untitled Meeting'}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {/* Vertical Line for Timeline (only if all are shown) */}
+                              {currentSelId === 'all' && filteredMeetings.length > 1 && (
+                                <div style={{
+                                  position: 'absolute', left: 31, top: 96, bottom: 40,
+                                  width: 3, background: 'linear-gradient(to bottom, #3b82f6, #93c5fd)',
+                                  borderRadius: 2
+                                }} />
                               )}
 
-                              {/* Participants */}
-                              {allP.length > 0 && (
-                                <div style={{ marginBottom: 12 }}>
-                                  <div style={{ fontWeight: 700, color: '#1e40af', marginBottom: 6, fontSize: '0.85rem' }}>👥 Participants ({allP.length})</div>
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                                    {allP.map((p, i) => <span key={i} style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 20, padding: '2px 9px', fontSize: '0.78rem', fontWeight: 600 }}>{p}</span>)}
-                                  </div>
-                                </div>
-                              )}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+                                {filteredMeetings.map((mom, mIdx) => {
+                                  const actualIdx = meetings.findIndex(m => m.id === mom.id);
+                                  const allP = [...(Array.isArray(mom.participants) ? mom.participants : []), mom.manualParticipant].filter(Boolean);
+                                  const dateStr = mom.date || (mom.timestamp?.toDate ? mom.timestamp.toDate().toLocaleDateString('en-IN') : '—');
+                                  const createdAt = mom.timestamp?.toDate ? mom.timestamp.toDate().toLocaleString('en-IN') : null;
 
-                              {/* Discussion Points */}
-                              {(mom.points || []).length > 0 && (
-                                <div style={{ marginBottom: 12 }}>
-                                  <div style={{ fontWeight: 700, color: '#1e40af', marginBottom: 6, fontSize: '0.85rem' }}>📌 Discussion Points</div>
-                                  <ol style={{ margin: 0, paddingLeft: 18, color: '#334155' }}>
-                                    {mom.points.map((pt, i) => <li key={i} style={{ marginBottom: 3, fontSize: '0.85rem' }}>{pt}</li>)}
-                                  </ol>
-                                </div>
-                              )}
+                                  return (
+                                    <div key={mom.id} style={{ display: 'flex', gap: 14, position: 'relative' }}>
+                                      {/* Timeline Node Icon/Step Badge */}
+                                      <div style={{
+                                        width: 32, height: 32, borderRadius: '50%',
+                                        background: '#3b82f6', color: '#fff',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontWeight: 800, fontSize: '0.9rem', zIndex: 2, flexShrink: 0,
+                                        boxShadow: '0 2px 6px rgba(59,130,246,0.4)',
+                                        border: '3px solid #fff'
+                                      }}>
+                                        {actualIdx + 1}
+                                      </div>
 
-                              {/* Summary */}
-                              {mom.summary?.discussion && (
-                                <div style={{ marginBottom: 10, padding: '8px 12px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
-                                  <div style={{ fontWeight: 700, color: '#166534', marginBottom: 4, fontSize: '0.82rem' }}>📝 Summary</div>
-                                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#166534', fontSize: '0.82rem', fontFamily: 'inherit' }}>{mom.summary.discussion}</pre>
-                                </div>
-                              )}
+                                      {/* Meeting Details Card */}
+                                      <div style={{
+                                        background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0',
+                                        padding: '16px 20px', flex: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                                        minWidth: 0
+                                      }}>
+                                        {/* Header */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+                                          <div style={{ minWidth: 0 }}>
+                                            <h4 style={{ margin: 0, fontWeight: 800, color: '#1e293b', fontSize: '1rem', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                              {mom.meetingName || 'Untitled Meeting'}
+                                            </h4>
+                                            <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                              <span>📅 {dateStr}</span>
+                                              <span>•</span>
+                                              <span>👥 {allP.length} participant{allP.length !== 1 ? 's' : ''}</span>
+                                            </div>
+                                          </div>
+                                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                            <button
+                                              onClick={() => generateMomPDF(mom)}
+                                              title="Export PDF"
+                                              style={{ background: '#eff6ff', color: '#2563eb', border: '1.5px solid #bfdbfe', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}
+                                            >📄 PDF</button>
+                                            {role === 'admin' && (
+                                              <button
+                                                onClick={() => setDeleteConfirmRecord({ ...mom, _collection: 'demo_moms' })}
+                                                title="Delete Record"
+                                                style={{ background: '#fee2e2', color: '#dc2626', border: '1.5px solid #fca5a5', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}
+                                              >🗑️ Delete</button>
+                                            )}
+                                          </div>
+                                        </div>
 
-                              {/* Action Items */}
-                              {mom.summary?.actions && (
-                                <div style={{ marginBottom: 10, padding: '8px 12px', background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
-                                  <div style={{ fontWeight: 700, color: '#b91c1c', marginBottom: 4, fontSize: '0.82rem' }}>⚡ Action Items</div>
-                                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#7f1d1d', fontSize: '0.82rem', fontFamily: 'inherit' }}>{mom.summary.actions}</pre>
-                                </div>
-                              )}
+                                        {/* Details */}
+                                        <div style={{ fontSize: '0.85rem', color: '#475569' }}>
+                                          {/* Location */}
+                                          {mom.location?.lat && (
+                                            <div style={{ marginBottom: 6, fontSize: '0.78rem' }}>
+                                              📍 Location: <a href={`https://www.google.com/maps?q=${mom.location.lat},${mom.location.lng}`} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', textDecoration: 'underline', wordBreak: 'break-all' }}>{mom.location.lat}, {mom.location.lng}</a>
+                                            </div>
+                                          )}
 
-                              {/* Created At */}
-                              {createdAt && (
-                                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 6 }}>
-                                  🕐 Created: {createdAt}
-                                </div>
-                              )}
+                                          {/* Participants */}
+                                          {allP.length > 0 && (
+                                            <div style={{ marginBottom: 10, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                                              <span style={{ fontWeight: 700, fontSize: '0.75rem', color: '#475569' }}>👥 Attended:</span>
+                                              {allP.map((p, idx) => (
+                                                <span key={idx} style={{ background: '#f1f5f9', color: '#334155', padding: '3px 8px', borderRadius: 6, fontSize: '0.72rem', fontWeight: 600 }}>{p}</span>
+                                              ))}
+                                            </div>
+                                          )}
+
+                                          {/* Photo Attachments */}
+                                          {mom.image && (
+                                            <div style={{ marginBottom: 12 }}>
+                                              <div style={{ fontWeight: 700, fontSize: '0.75rem', color: '#475569', marginBottom: 6 }}>🖼️ Photo:</div>
+                                              <img
+                                                src={mom.image}
+                                                alt="Meeting attachment"
+                                                style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 10, border: '1px solid #e2e8f0', objectFit: 'contain' }}
+                                              />
+                                            </div>
+                                          )}
+
+                                          {/* Summary */}
+                                          {mom.summary?.discussion && (
+                                            <div style={{ marginBottom: 8, padding: '6px 10px', background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0' }}>
+                                              <div style={{ fontWeight: 700, color: '#166534', marginBottom: 2, fontSize: '0.78rem' }}>📝 Summary</div>
+                                              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#166534', fontSize: '0.78rem', fontFamily: 'inherit' }}>{mom.summary.discussion}</pre>
+                                            </div>
+                                          )}
+
+                                          {/* Actions */}
+                                          {mom.summary?.actions && (
+                                            <div style={{ marginBottom: 8, padding: '6px 10px', background: '#fef2f2', borderRadius: 6, border: '1px solid #fecaca' }}>
+                                              <div style={{ fontWeight: 700, color: '#b91c1c', marginBottom: 2, fontSize: '0.78rem' }}>⚡ Action Items</div>
+                                              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#7f1d1d', fontSize: '0.78rem', fontFamily: 'inherit' }}>{mom.summary.actions}</pre>
+                                            </div>
+                                          )}
+
+                                          {createdAt && (
+                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 4 }}>
+                                              🕐 Saved: {createdAt}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                          <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                            <button
-                              onClick={() => setDeleteConfirmRecord({ ...mom, _collection: 'demo_moms' })}
-                              style={{ background: '#fee2e2', color: '#dc2626', border: '1.5px solid #fca5a5', borderRadius: 8, padding: '8px 16px', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
-                            >🗑️ Delete</button>
-                            <button onClick={() => generateMomPDF(mom)} style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}>
-                              📄 Export PDF
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                          );
+                        })()}
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>
@@ -697,15 +829,16 @@ export default function HistoryPage() {
 function Row({ label, val }) {
   if (!val) return null;
   return (
-    <div style={{ display: 'flex', gap: 8, paddingBottom: 2 }}>
-      <span style={{ fontWeight: 700, color: '#1e40af', minWidth: 140, flexShrink: 0 }}>{label}:</span>
-      <span style={{ color: '#334155' }}>{val}</span>
+    <div style={{ display: 'flex', gap: 8, paddingBottom: 2, flexWrap: 'wrap' }}>
+      <span style={{ fontWeight: 700, color: '#1e40af', minWidth: 120, flexShrink: 0, fontSize: '0.88rem' }}>{label}:</span>
+      <span style={{ color: '#334155', flex: 1, wordBreak: 'break-word' }}>{val}</span>
     </div>
   );
 }
 
 // ── ReportCard component ──────────────────────────────────────────────────────
 function ReportCard({ report, onView, onEdit, onDelete }) {
+  const { role } = useAuth();
   const statusColors = {
     COMPLETED: 'background:#e8f5e9;color:#2e7d32',
     'IN REVIEW': 'background:#e8eaf6;color:#3f51b5',
@@ -874,21 +1007,21 @@ function ReportCard({ report, onView, onEdit, onDelete }) {
 
   return (
     <div style={{
-      background: '#fff', borderRadius: 20, padding: '20px 22px',
+      background: '#fff', borderRadius: 20, padding: '16px',
       boxShadow: '0 4px 20px rgba(0,0,0,0.05)', border: '1px solid rgba(241,245,249,0.8)',
-      transition: 'box-shadow 0.3s',
+      transition: 'box-shadow 0.3s', overflowX: 'hidden', wordBreak: 'break-word',
     }}>
       {/* Top row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
-        <div>
-          <h4 style={{ fontWeight: 800, color: '#2563eb', fontSize: '1rem', margin: '0 0 3px' }}>{report.reportId}</h4>
-          <p style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 700, margin: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h4 style={{ fontWeight: 800, color: '#2563eb', fontSize: '0.95rem', margin: '0 0 3px', wordBreak: 'break-word' }}>{report.reportId}</h4>
+          <p style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, margin: 0, wordBreak: 'break-word' }}>
             {report.date} • {report.time || (report.createdAt?.toDate?.().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) || 'N/A'}
           </p>
         </div>
         <span style={{
-          padding: '5px 14px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 800,
-          textTransform: 'uppercase', letterSpacing: '0.08em',
+          padding: '4px 10px', borderRadius: 20, fontSize: '0.65rem', fontWeight: 800,
+          textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0,
           ...Object.fromEntries((statusColors[report.status] || 'background:#f1f5f9;color:#64748b').split(';').map(s => { const [k, v] = s.split(':'); return [k?.trim(), v?.trim()]; }))
         }}>
           {report.status}
@@ -907,13 +1040,13 @@ function ReportCard({ report, onView, onEdit, onDelete }) {
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {/* View */}
           <button
             onClick={onView}
             title="View Details"
-            style={{ background: '#eff6ff', color: '#2563eb', border: '1.5px solid #bfdbfe', borderRadius: 10, padding: '7px 14px', fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}
+            style={{ background: '#eff6ff', color: '#2563eb', border: '1.5px solid #bfdbfe', borderRadius: 10, padding: '7px 14px', fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5, flex: '1 1 auto', justifyContent: 'center' }}
           >
             <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
             View
@@ -923,27 +1056,29 @@ function ReportCard({ report, onView, onEdit, onDelete }) {
           <button
             onClick={onEdit}
             title="Edit Record"
-            style={{ background: '#fef9c3', color: '#92400e', border: '1.5px solid #fde68a', borderRadius: 10, padding: '7px 14px', fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}
+            style={{ background: '#fef9c3', color: '#92400e', border: '1.5px solid #fde68a', borderRadius: 10, padding: '7px 14px', fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5, flex: '1 1 auto', justifyContent: 'center' }}
           >
             <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
             Edit
           </button>
 
           {/* Delete */}
-          <button
-            onClick={onDelete}
-            title="Delete Record"
-            style={{ background: '#fee2e2', color: '#dc2626', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '7px 14px', fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}
-          >
-            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-            Delete
-          </button>
+          {role === 'admin' && (
+            <button
+              onClick={onDelete}
+              title="Delete Record"
+              style={{ background: '#fee2e2', color: '#dc2626', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '7px 14px', fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5, flex: '1 1 auto', justifyContent: 'center' }}
+            >
+              <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              Delete
+            </button>
+          )}
         </div>
 
         {/* Download PDF */}
         <button
           onClick={handleDownloadPDF}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 20px', background: '#e8eaf6', color: '#3f51b5', borderRadius: 12, fontSize: '0.82rem', fontWeight: 800, border: 'none', cursor: 'pointer', transition: 'background 0.2s' }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '9px 20px', background: '#e8eaf6', color: '#3f51b5', borderRadius: 12, fontSize: '0.82rem', fontWeight: 800, border: 'none', cursor: 'pointer', transition: 'background 0.2s', width: '100%' }}
         >
           <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
           Download PDF
@@ -1000,7 +1135,7 @@ function ViewModal({ record, onClose }) {
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', maxWidth: 600, width: '100%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }}
+        style={{ background: '#fff', borderRadius: 16, padding: '20px 16px', maxWidth: 600, width: '100%', maxHeight: '88vh', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '2px solid #e0eaff', paddingBottom: 12 }}>
           <h3 style={{ margin: 0, color: '#1e40af', fontWeight: 800, fontSize: '1.1rem' }}>
@@ -1123,7 +1258,7 @@ function EditModal({ record, onClose, onSave, editSaving }) {
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', maxWidth: 600, width: '100%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}
+        style={{ background: '#fff', borderRadius: 16, padding: '20px 16px', maxWidth: 600, width: '100%', maxHeight: '88vh', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '2px solid #e0eaff', paddingBottom: 12 }}>
           <h3 style={{ margin: 0, color: '#1e40af', fontWeight: 800, fontSize: '1.1rem' }}>
@@ -1134,7 +1269,7 @@ function EditModal({ record, onClose, onSave, editSaving }) {
 
         {isField ? (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14 }}>
               <div style={fieldStyle}>
                 <label style={labelStyle}>Officer Name</label>
                 <input style={inputStyle} value={form.officerName || ''} onChange={e => set('officerName', e.target.value)} />
@@ -1182,7 +1317,7 @@ function EditModal({ record, onClose, onSave, editSaving }) {
             </div>
             <div style={{ background: '#f0f7ff', borderRadius: 10, padding: '14px 16px', marginBottom: 14 }}>
               <label style={{ ...labelStyle, marginBottom: 10 }}>💰 Expenses</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10 }}>
                 <div>
                   <label style={{ ...labelStyle, color: '#64748b' }}>Food (₹)</label>
                   <input style={inputStyle} value={form.expenses?.food || ''} onChange={e => setExp('food', e.target.value)} />
@@ -1200,7 +1335,7 @@ function EditModal({ record, onClose, onSave, editSaving }) {
           </>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14 }}>
               <div style={fieldStyle}>
                 <label style={labelStyle}>Demo Name</label>
                 <input style={inputStyle} value={form.demoName || ''} onChange={e => set('demoName', e.target.value)} />

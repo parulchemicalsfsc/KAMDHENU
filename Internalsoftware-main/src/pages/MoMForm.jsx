@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { db } from "../firebase";
-import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, Timestamp, updateDoc, doc, deleteDoc } from "firebase/firestore";
 import Navbar from "../components/Navbar";
+import useAuth from "../hooks/useAuth";
 import "../style/form.css";
 
 const participantsList = [
@@ -56,8 +58,19 @@ const S = {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 const MoMForm = () => {
+  const [searchParams] = useSearchParams();
+  const { role } = useAuth();
+
+  // Refs
+  const meetingInputRef = useRef(null);
+
   // Form state
   const [meetingName, setMeetingName] = useState('');
+  const [allMoms, setAllMoms] = useState([]);
+  const [collectionName, setCollectionName] = useState('');
+  const [existingCollections, setExistingCollections] = useState([]);
+  const [selectedMeetingId, setSelectedMeetingId] = useState('new');
+  const [editingDocId, setEditingDocId] = useState(null);
   const [date, setDate] = useState('');
   const [location, setLocation] = useState({ lat: '', lng: '' });
   const [participants, setParticipants] = useState([]);
@@ -70,6 +83,11 @@ const MoMForm = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Modal dialog state
+  const [isNewMeetingModalOpen, setIsNewMeetingModalOpen] = useState(false);
+  const [newMeetingNameInput, setNewMeetingNameInput] = useState('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
   // ── Init ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -77,7 +95,205 @@ const MoMForm = () => {
       () => {}
     );
     setDate(new Date().toISOString().split('T')[0]);
+
+    // Fetch existing unique collectionNames from demo_moms and mom_collections
+    const fetchCollections = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'demo_moms'));
+        const docs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setAllMoms(docs);
+
+        const snapCols = await getDocs(collection(db, 'mom_collections'));
+        const docsCols = snapCols.docs.map(doc => doc.data().name?.trim()).filter(Boolean);
+
+        const cols = new Set();
+        // Add existing collections from meetings
+        docs.forEach(d => {
+          if (d.collectionName) {
+            cols.add(d.collectionName.trim());
+          }
+        });
+        // Add collections from mom_collections
+        docsCols.forEach(name => cols.add(name));
+
+        const list = Array.from(cols).sort();
+
+        // Pre-select/pre-fill after collection list has finished loading
+        const colParam = searchParams.get('collection');
+        const meetParam = searchParams.get('meeting');
+
+        let activeCol = '';
+        if (colParam) {
+          activeCol = colParam.trim();
+          if (activeCol && !list.includes(activeCol)) {
+            list.push(activeCol);
+            list.sort();
+          }
+          setCollectionName(activeCol);
+        }
+        setExistingCollections(list);
+
+        if (activeCol) {
+          const matchingMeetings = docs.filter(m => m.collectionName?.trim().toLowerCase() === activeCol.toLowerCase());
+          
+          if (meetParam && meetParam.trim()) {
+            const trimmedMeet = meetParam.trim();
+            // Check if there is an existing meeting matching this name
+            const existingMeet = matchingMeetings.find(m => m.meetingName?.trim().toLowerCase() === trimmedMeet.toLowerCase());
+            if (existingMeet) {
+              setSelectedMeetingId(existingMeet.id);
+              setMeetingName(existingMeet.meetingName || '');
+              setDate(existingMeet.date || new Date().toISOString().split('T')[0]);
+              setParticipants(existingMeet.participants || []);
+              setManualParticipant(existingMeet.manualParticipant || '');
+              setPoints(existingMeet.points || []);
+              setSummary(existingMeet.summary || null);
+              setImage(existingMeet.image || null);
+              setImagePreview(existingMeet.image || null);
+              setEditingDocId(existingMeet.id);
+            } else {
+              setSelectedMeetingId('new');
+              setMeetingName(trimmedMeet);
+              setEditingDocId(null);
+            }
+          } else {
+            setSelectedMeetingId('new');
+            const count = matchingMeetings.length;
+            setMeetingName(`Meeting ${count + 1}`);
+            setEditingDocId(null);
+          }
+        } else {
+          setMeetingName("Meeting 1");
+          setSelectedMeetingId('new');
+          setEditingDocId(null);
+        }
+      } catch (err) {
+        console.error("Error fetching collections:", err);
+      }
+    };
+    fetchCollections();
   }, []);
+
+
+
+  // Handlers for dynamic dropdown changes
+  const handleCollectionChange = (newCol) => {
+    setCollectionName(newCol);
+    setSelectedMeetingId('');
+    setEditingDocId(null);
+
+    // Reset meeting details to start fresh
+    setDate(new Date().toISOString().split('T')[0]);
+    setParticipants([]);
+    setManualParticipant('');
+    setPoints([]);
+    setSummary(null);
+    setImage(null);
+    setImagePreview(null);
+    setMeetingName('');
+  };
+
+  const handleMeetingIdChange = (meetingId) => {
+    setSelectedMeetingId(meetingId);
+
+    if (!meetingId) {
+      setMeetingName('');
+      setEditingDocId(null);
+      setDate(new Date().toISOString().split('T')[0]);
+      setParticipants([]);
+      setManualParticipant('');
+      setPoints([]);
+      setSummary(null);
+      setImage(null);
+      setImagePreview(null);
+      return;
+    }
+
+    // Load existing meeting details
+    const mom = allMoms.find(m => m.id === meetingId);
+    if (mom) {
+      setMeetingName(mom.meetingName || '');
+      setDate(mom.date || new Date().toISOString().split('T')[0]);
+      setParticipants(mom.participants || []);
+      setManualParticipant(mom.manualParticipant || '');
+      setPoints(mom.points || []);
+      setSummary(mom.summary || null);
+      setImage(mom.image || null);
+      setImagePreview(mom.image || null);
+      setEditingDocId(mom.id);
+
+      // Focus and select input text so they can quickly rename or view
+      setTimeout(() => {
+        if (meetingInputRef.current) {
+          meetingInputRef.current.focus();
+          meetingInputRef.current.select();
+        }
+      }, 50);
+    }
+  };
+
+  const handleOpenNewMeetingModal = () => {
+    if (!collectionName) {
+      toast.warn("Please select a collection first.");
+      return;
+    }
+    // Determine the next sequential meeting name
+    const matchingMeetings = allMoms.filter(m => m.collectionName?.trim().toLowerCase() === collectionName.trim().toLowerCase());
+    const count = matchingMeetings.length;
+    setNewMeetingNameInput(`Meeting ${count + 1}`);
+    setIsNewMeetingModalOpen(true);
+  };
+
+  const handleCreateMeetingSubmit = async (e) => {
+    e.preventDefault();
+    const newName = newMeetingNameInput.trim();
+    if (!newName) {
+      toast.error("Please enter a meeting name.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        meetingName: newName,
+        collectionName: collectionName,
+        date: new Date().toISOString().split('T')[0],
+        location: location,
+        participants: [],
+        manualParticipant: '',
+        points: [],
+        summary: null,
+        image: null,
+        timestamp: Timestamp.now()
+      };
+      
+      const docRef = await addDoc(collection(db, 'demo_moms'), payload);
+      toast.success(`Meeting "${newName}" created successfully! ✓`);
+      
+      // Re-fetch all moms
+      const snap = await getDocs(collection(db, 'demo_moms'));
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setAllMoms(docs);
+      
+      // Select the newly created meeting in the dropdown
+      setSelectedMeetingId(docRef.id);
+      setMeetingName(newName);
+      setEditingDocId(docRef.id);
+      
+      // Reset form states for the new meeting details
+      setDate(payload.date);
+      setParticipants([]);
+      setManualParticipant('');
+      setPoints([]);
+      setSummary(null);
+      setImage(null);
+      setImagePreview(null);
+      
+      setIsNewMeetingModalOpen(false);
+    } catch (err) {
+      toast.error("Failed to create meeting: " + err.message);
+    }
+    setSaving(false);
+  };
 
   // ── Image upload + compress ──────────────────────────────────────────────
   const handleImageChange = async (e) => {
@@ -126,12 +342,16 @@ const MoMForm = () => {
 
   // ── Save to Firestore ─────────────────────────────────────────────────────
   const saveToFirestore = async () => {
-    if (!meetingName.trim()) { toast.error('Please enter a meeting name'); return; }
+    const finalCollection = collectionName.trim();
+    const finalMeeting = meetingName.trim();
+    if (!finalMeeting) { toast.error('Please enter a meeting name'); return; }
+    if (!finalCollection) { toast.error('Please select or enter a collection name'); return; }
     if (points.length === 0) { toast.error('Add at least one discussion point'); return; }
     setSaving(true);
     try {
       const payload = {
-        meetingName: meetingName.trim(),
+        meetingName: finalMeeting,
+        collectionName: finalCollection,
         date,
         location,
         participants,
@@ -141,23 +361,79 @@ const MoMForm = () => {
         image: image || null,
         timestamp: Timestamp.now(),
       };
-      await addDoc(collection(db, 'demo_moms'), payload);
-      toast.success('Minutes of Meeting saved! ✓');
-      // Reset form
-      setMeetingName(''); setParticipants([]); setManualParticipant('');
-      setPoints([]); setSummary(null); setImage(null); setImagePreview(null);
-      setDate(new Date().toISOString().split('T')[0]);
+
+      if (editingDocId) {
+        await updateDoc(doc(db, 'demo_moms', editingDocId), payload);
+        toast.success('Minutes of Meeting updated successfully! ✓');
+      } else {
+        await addDoc(collection(db, 'demo_moms'), payload);
+        toast.success('New Minutes of Meeting saved! ✓');
+      }
+
+      // Form data is preserved after saving so the user can continue editing if they want.
+
+      // Re-fetch existing collectionNames to update suggestions
+      const snap = await getDocs(collection(db, 'demo_moms'));
+      const docs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setAllMoms(docs);
+
+      const snapCols = await getDocs(collection(db, 'mom_collections'));
+      const docsCols = snapCols.docs.map(doc => doc.data().name?.trim()).filter(Boolean);
+
+      const cols = new Set();
+      docs.forEach(d => {
+        if (d.collectionName) {
+          cols.add(d.collectionName.trim());
+        }
+      });
+      docsCols.forEach(name => cols.add(name));
+      setExistingCollections(Array.from(cols).sort());
     } catch (e) {
       toast.error('Save failed: ' + e.message);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
+
+  const handleDeleteMeeting = (e) => {
+    if (e) e.preventDefault();
+    if (!editingDocId) return;
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteMeeting = async () => {
+    setIsDeleteModalOpen(false);
+    try {
+      await deleteDoc(doc(db, 'demo_moms', editingDocId));
+      toast.success('Meeting deleted successfully!');
+      
+      // Re-fetch all moms
+      const snap = await getDocs(collection(db, 'demo_moms'));
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setAllMoms(docs);
+      
+      // Reset form
+      setMeetingName('');
+      setSelectedMeetingId('');
+      setEditingDocId(null);
+      setParticipants([]);
+      setManualParticipant('');
+      setPoints([]);
+      setSummary(null);
+      setImage(null);
+      setImagePreview(null);
+    } catch (e) {
+      toast.error('Failed to delete: ' + e.message);
+    }
+  };
+
 
   // ── Generate PDF ──────────────────────────────────────────────────────────
   const generatePDF = async (momData) => {
     // momData = past record, or null = use current form state
     const data = momData || {
-      meetingName,
+      meetingName: meetingName.trim(),
+      collectionName: collectionName.trim(),
       date,
       location,
       participants,
@@ -186,6 +462,14 @@ const MoMForm = () => {
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.text(data.meetingName || 'Untitled Meeting', 14, y); y += 8;
+
+      // Collection Name
+      if (data.collectionName) {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(80, 80, 80);
+        doc.text(`Collection: ${data.collectionName}`, 14, y); y += 6;
+      }
 
       // Date & Location
       doc.setFontSize(10);
@@ -310,19 +594,76 @@ const MoMForm = () => {
                 ✏️ New MoM Entry
               </h3>
 
-              {/* Meeting Name */}
+              {/* Meeting Collection / Project Name */}
               <div style={{ marginBottom: 18 }}>
                 <label style={S.label}>
-                  Meeting Name / Title <span style={{ color: '#ef4444' }}>*</span>
+                  Meeting Collection / List Name <span style={{ color: '#ef4444' }}>*</span>
                 </label>
-                <input
-                  type="text"
-                  value={meetingName}
-                  onChange={e => setMeetingName(e.target.value)}
-                  placeholder="e.g. Weekly Sales Review, Monthly Planning..."
-                  style={{ ...S.input, fontSize: '1rem', fontWeight: 500 }}
-                />
+                <select
+                  value={collectionName}
+                  onChange={e => handleCollectionChange(e.target.value)}
+                  style={{ ...S.input, color: collectionName ? '#334155' : '#94a3b8', fontWeight: 500 }}
+                >
+                  <option value="">-- Select Collection / List Name --</option>
+                  {existingCollections.map(c => (
+                    <option key={c} value={c} style={{ color: '#334155' }}>{c}</option>
+                  ))}
+                </select>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 5 }}>
+                  Select an existing collection. To create a new one, use the "➕ New Collection Flow" button on the History page.
+                </div>
               </div>
+
+              {/* Meeting Name / Title Selection */}
+              {collectionName && (
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={S.label}>
+                      Enter New Meeting Name <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      <select
+                        value={selectedMeetingId}
+                        onChange={e => handleMeetingIdChange(e.target.value)}
+                        style={{ ...S.input, color: '#334155', fontWeight: 500, flex: 1, minWidth: '200px' }}
+                      >
+                        <option value="">-- Select Meeting --</option>
+                        {allMoms
+                          .filter(m => m.collectionName?.trim().toLowerCase() === collectionName.trim().toLowerCase())
+                          .map((mom, idx) => (
+                            <option key={mom.id} value={mom.id}>
+                              {idx + 1}. {mom.meetingName || 'Untitled Meeting'}
+                            </option>
+                          ))
+                        }
+                      </select>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={handleOpenNewMeetingModal}
+                          style={{ ...S.button, background: '#10b981', padding: '0 16px', whiteSpace: 'nowrap' }}
+                        >
+                          ➕ Create New Meeting
+                        </button>
+                        {editingDocId && (
+                          <button
+                            type="button"
+                            onClick={handleDeleteMeeting}
+                            style={{ ...S.button, background: '#ef4444', padding: '0 16px', whiteSpace: 'nowrap' }}
+                            title="Delete this meeting"
+                          >
+                            🗑️ Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                    Select an existing meeting to edit/view its details, or choose "Create New Meeting" to start a new record.
+                  </div>
+                </div>
+              )}
 
               {/* Date + Location */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 18 }}>
@@ -451,7 +792,7 @@ const MoMForm = () => {
                 <button onClick={saveToFirestore} disabled={saving} style={{ ...S.btn('#8b5cf6'), opacity: saving ? 0.7 : 1 }}>
                   {saving ? '⏳ Saving...' : '💾 Save to Database'}
                 </button>
-                <button onClick={() => generatePDF(null)} style={S.btn('#ef4444')}>📄 Export as PDF</button>
+                <button onClick={() => generatePDF(null)} style={S.btn('#10b981')}>📄 Export as PDF</button>
               </div>
 
               {/* Summary Preview */}
@@ -475,6 +816,83 @@ const MoMForm = () => {
           </div>
         </div>
       </div>
+
+      {/* ── CREATE NEW MEETING MODAL ── */}
+      {isNewMeetingModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            background: '#fff', padding: '24px', borderRadius: '12px',
+            width: '90%', maxWidth: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+          }}>
+            <h3 style={{ margin: '0 0 16px', color: '#1e293b' }}>Create New Meeting</h3>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={S.label}>Meeting Name</label>
+              <input
+                type="text"
+                value={newMeetingNameInput}
+                onChange={(e) => setNewMeetingNameInput(e.target.value)}
+                style={{ ...S.input, fontSize: '1rem' }}
+                placeholder="Enter meeting name..."
+                autoFocus
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setIsNewMeetingModalOpen(false)}
+                style={{ ...S.button, background: '#e2e8f0', color: '#475569' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateMeetingSubmit}
+                disabled={saving}
+                style={{ ...S.button, background: '#10b981' }}
+              >
+                {saving ? 'Creating...' : 'Add Meeting'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── DELETE CONFIRMATION MODAL ── */}
+      {isDeleteModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            background: '#fff', padding: '24px', borderRadius: '12px',
+            width: '90%', maxWidth: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+          }}>
+            <h3 style={{ margin: '0 0 16px', color: '#ef4444' }}>⚠️ Delete Meeting</h3>
+            <p style={{ color: '#475569', marginBottom: '20px', lineHeight: '1.5' }}>
+              Are you sure you want to permanently delete <strong>{meetingName}</strong>? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                style={{ ...S.button, background: '#e2e8f0', color: '#475569' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteMeeting}
+                style={{ ...S.button, background: '#ef4444' }}
+              >
+                Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

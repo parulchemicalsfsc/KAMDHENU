@@ -1,7 +1,299 @@
-/* History Dashboard Styles 
-   These classes mimic modern utility-based framework designs (like Tailwind)
-   but map it directly without risking the rest of the application.
-*/
+/* History Dashboard Styles */
+
+* {
+  box-sizing: border-box;
+}
+
+.history-page-root {
+  background-color: #f8fafc;
+  min-height: 100vh;
+  font-family: 'Poppins', sans-serif;
+  overflow-x: hidden;
+}
+
+.history-page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  overflow-x: hidden;
+}
+
+.history-header {
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.history-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+}
+
+.history-title::before {
+  content: '🗺️';
+  font-size: 1.5rem;
+}
+
+/* Filter Bar */
+.history-filter-bar {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  margin-bottom: 24px;
+  border: 1px solid #e2e8f0;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 160px;
+}
+
+.filter-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.filter-input-select,
+.filter-input {
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  color: #334155;
+  background-color: #fff;
+  outline: none;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.filter-input-select:focus,
+.filter-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Table Section */
+.history-table-section {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.table-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.table-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* Responsive Table container */
+.history-table-wrapper {
+  overflow-x: auto;
+}
+
+.history-table-component {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.history-table-component th {
+  background-color: #f1f5f9;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.history-table-component th:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+.history-table-component th:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+
+.history-table-component td {
+  padding: 16px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  color: #334155;
+  transition: background-color 0.15s ease;
+}
+
+.history-table-row:hover td {
+  background-color: #f8fafc;
+}
+
+.history-table-row:last-child td {
+  border-bottom: none;
+}
+
+.bold-text {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.sub-text {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.officer-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.officer-avatar {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.officer-name {
+  font-weight: 500;
+}
+
+/* Status Pills */
+.status-pill {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.status-completed {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.status-in-review {
+  background-color: #e0e7ff;
+  color: #4338ca;
+}
+
+.status-pending {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-default {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+/* Actions */
+.col-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+  color: #64748b;
+  font-size: 1.1rem;
+}
+
+.action-btn:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.download-btn {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.download-btn:hover {
+  background-color: #dbeafe;
+  border-color: #93c5fd;
+}
+
+/* Empty State */
+.history-empty-state {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.history-empty-state h3 {
+  margin: 0 0 8px;
+  color: #1e293b;
+  font-size: 1.2rem;
+}
+
+.history-empty-state p {
+  margin: 0;
+  color: #64748b;
+}
+
+/* ── MOBILE RESPONSIVE FIXES ── */
+@media (max-width: 768px) {
+  .history-filter-bar {
+    flex-direction: column;
+  }
+
+  .history-page-container {
+    padding: 12px;
+  }
+}
+
 
 .history-page-root {
   background-color: #f8fafc; /* Very light slate */
