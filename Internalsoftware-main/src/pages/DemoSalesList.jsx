@@ -1126,6 +1126,7 @@ const DemoSalesList = () => {
       "20 LTR CARBO": "20 LTR CARBO",
       "20 LTR CAN": "20 LTR CAN",
       "20 LTR STEEL": "20 LTR STEEL",
+      "1LTR PET": "1LTR PET",
     };
 
     setStockTaken((current) => {
@@ -1183,6 +1184,7 @@ const DemoSalesList = () => {
       "20 LTR CARBO": "20 LTR CARBO",
       "20 LTR CAN": "20 LTR CAN",
       "20 LTR STEEL": "20 LTR STEEL",
+      "1LTR PET": "1LTR PET",
     };
 
     setStockTaken((current) => {

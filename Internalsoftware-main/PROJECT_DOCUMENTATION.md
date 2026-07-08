@@ -360,6 +360,7 @@ demosales/
 20 LTR CARBO: ₹2,550
 20 LTR CANL: ₹3,250
 20 LTR STEEL બરણી: ₹3,520
+1LTR PET: ₹0
 ```
 
 ---

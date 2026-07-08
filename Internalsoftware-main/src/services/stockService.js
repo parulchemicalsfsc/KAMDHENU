@@ -130,6 +130,7 @@ export const PACKAGING_OPTIONS = [
   "20 LTR CARBO",
   "20 LTR CANL",
   "20 LTR STEEL બરણી",
+  "1LTR PET",
 ];
 
 /**

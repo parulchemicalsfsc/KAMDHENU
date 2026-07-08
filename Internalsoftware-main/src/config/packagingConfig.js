@@ -12,6 +12,7 @@ export const PACKAGING_DATA = [
   { id: 7, name: "20 LTR CARBO", price: 2550, litres: 20 },
   { id: 8, name: "20 LTR CAN", price: 3250, litres: 20 },
   { id: 9, name: "20 LTR STEEL", price: 3520, litres: 20 },
+  { id: 10, name: "1LTR PET", price: 0, litres: 1 },
 ];
 
 /**
