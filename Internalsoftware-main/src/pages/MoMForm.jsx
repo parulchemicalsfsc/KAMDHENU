@@ -621,11 +621,11 @@ const MoMForm = () => {
                     <label style={S.label}>
                       Enter New Meeting Name <span style={{ color: '#ef4444' }}>*</span>
                     </label>
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'stretch' }}>
                       <select
                         value={selectedMeetingId}
                         onChange={e => handleMeetingIdChange(e.target.value)}
-                        style={{ ...S.input, color: '#334155', fontWeight: 500, flex: 1, minWidth: '200px' }}
+                        style={{ ...S.input, color: '#334155', fontWeight: 500, flex: '1 1 160px', minWidth: 0 }}
                       >
                         <option value="">-- Select Meeting --</option>
                         {allMoms
@@ -637,11 +637,11 @@ const MoMForm = () => {
                           ))
                         }
                       </select>
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: '1 1 auto' }}>
                         <button
                           type="button"
                           onClick={handleOpenNewMeetingModal}
-                          style={{ ...S.button, background: '#10b981', padding: '0 16px', whiteSpace: 'nowrap' }}
+                          style={{ ...S.button, background: '#10b981', padding: '0 16px', whiteSpace: 'nowrap', flex: '1 1 auto' }}
                         >
                           ➕ Create New Meeting
                         </button>
@@ -649,7 +649,7 @@ const MoMForm = () => {
                           <button
                             type="button"
                             onClick={handleDeleteMeeting}
-                            style={{ ...S.button, background: '#ef4444', padding: '0 16px', whiteSpace: 'nowrap' }}
+                            style={{ ...S.button, background: '#ef4444', padding: '0 16px', whiteSpace: 'nowrap', flex: '1 1 auto' }}
                             title="Delete this meeting"
                           >
                             🗑️ Delete
@@ -657,6 +657,7 @@ const MoMForm = () => {
                         )}
                       </div>
                     </div>
+
                   </div>
 
                   <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>

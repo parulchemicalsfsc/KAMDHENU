@@ -25,3 +25,7 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local scratch / temp files
+scratch/
+sample_customers.xlsx
